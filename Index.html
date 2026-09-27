@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supine postural modelling tool – v0.6.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF3F5; --panel:#FFFFFF; --ink:#15252D; --muted:#4F636C; --line:#D2DDE2;
+  --bed:#E2EBEF; --grid:#C9D7DD; --right:#1C5DA6; --right-soft:#E3EDF8; --left:#A34F0C; --left-soft:#FBEDE1;
+  --warn:#B0261D; --warn-soft:#FCEAE8; --amber:#6F4B00; --amber-soft:#FFF2D2; --ok:#236B4A;
+  --stroke:#2F4A56; --bone:#15252D; --ghost:#5A6E77; --focus:#1C5DA6;
+  --support:rgba(20,140,135,0.34); --supportLine:#0E6E68; --supportSel:#0A4F4A;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#11191D; --panel:#18232A; --ink:#E6EEF1; --muted:#9DB1BA; --line:#2C3B43;
+    --bed:#1C2A31; --grid:#2A3C45; --right:#7DB3F0; --right-soft:#1A2B3E; --left:#F0A866; --left-soft:#3A2717;
+    --warn:#FF8F85; --warn-soft:#3A1D1B; --amber:#F2C866; --amber-soft:#342A12; --ok:#7FD1A8;
+    --stroke:#A9C2CC; --bone:#E6EEF1; --ghost:#8AA0A9; --focus:#7DB3F0;
+    --support:rgba(64,196,188,0.30); --supportLine:#63D6CD; --supportSel:#B9F1EC; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#11191D; --panel:#18232A; --ink:#E6EEF1; --muted:#9DB1BA; --line:#2C3B43;
+  --bed:#1C2A31; --grid:#2A3C45; --right:#7DB3F0; --right-soft:#1A2B3E; --left:#F0A866; --left-soft:#3A2717;
+  --warn:#FF8F85; --warn-soft:#3A1D1B; --amber:#F2C866; --amber-soft:#342A12; --ok:#7FD1A8;
+  --stroke:#A9C2CC; --bone:#E6EEF1; --ghost:#8AA0A9; --focus:#7DB3F0;
+  --support:rgba(64,196,188,0.30); --supportLine:#63D6CD; --supportSel:#B9F1EC; color-scheme: dark;
+}
+*{box-sizing:border-box}
+.support{cursor:grab}
+.support:active{cursor:grabbing}
+.addsupport{display:flex;gap:.5rem;margin:.3rem 0 .6rem}
+.addsupport select{flex:1;min-width:0}
+.supitem{border:1px solid var(--line);border-radius:8px;padding:.5rem .6rem;margin:.4rem 0;background:var(--panel)}
+.supitem.selected{border-color:var(--supportLine);box-shadow:0 0 0 2px var(--support)}
+.supitem-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.3rem}
+.suprow{display:flex;align-items:center;gap:.5rem;font-size:.85rem;margin:.25rem 0}
+.suprow input[type=text]{flex:1;min-width:0}
+.suprow input[type=range]{flex:1;min-width:0}
+.suprow span{min-width:3.4em;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.minibtn.danger{color:var(--warn);border-color:var(--warn)}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:.5rem 1.5rem;padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--line);background:var(--panel)}
+header.top h1{font-size:1.35rem;margin:0;line-height:1.2}
+header.top .sub{margin:.15rem 0 0;color:var(--muted);font-size:.9rem}
+.actions{display:flex;flex-wrap:wrap;gap:.4rem}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:.4rem .75rem;cursor:pointer}
+.btn:hover{border-color:var(--stroke)}
+.btn.primary{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.notice{margin:0;padding:.55rem 1.25rem;background:var(--amber-soft);color:var(--ink);font-size:.88rem;border-bottom:1px solid var(--line)}
+.notice strong{color:var(--amber)}
+#page-model{display:grid;grid-template-columns:minmax(330px,390px) minmax(0,1fr) minmax(290px,340px);gap:0;min-height:calc(100vh - 110px)}
+@media (max-width:1180px){#page-model{grid-template-columns:minmax(310px,370px) minmax(0,1fr)} #readouts{grid-column:1 / -1;border-left:none;border-top:1px solid var(--line)}}
+@media (max-width:760px){#page-model{grid-template-columns:1fr} #page-model>div:first-child{max-height:none;position:static;border-right:none} #viewcol{order:-1}}
+
+/* ----- inputs ----- */
+#page-model>div:first-child{border-right:1px solid var(--line);background:var(--panel);overflow:auto;max-height:calc(100vh - 110px);position:sticky;top:0}
+#inputs{background:var(--panel)}
+details.grp{border-bottom:1px solid var(--line)}
+details.grp>summary{cursor:pointer;padding:.7rem 1rem;font-weight:700;font-size:1.02rem;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.grp>summary::-webkit-details-marker{display:none}
+details.grp>summary::after{content:"+";font-weight:400;color:var(--muted);font-size:1.2rem}
+details.grp[open]>summary::after{content:"–"}
+details.grp>summary .count{font-weight:400;font-size:.8rem;color:var(--muted);margin-left:auto;margin-right:.6rem}
+.grp-body{padding:0 1rem .9rem}
+.ctl{padding:.6rem 0;border-top:1px dashed var(--line)}
+.ctl:first-child{border-top:none}
+.ctl-head{display:flex;justify-content:space-between;gap:.5rem;align-items:baseline}
+.ctl-label{font-weight:700}
+.ctl-out{font-size:.82rem;color:var(--muted);text-align:right}
+.help{margin:.1rem 0 .4rem;color:var(--muted);font-size:.83rem}
+.seg{display:grid;grid-template-columns:1fr auto 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:.25rem 0}
+.seg.four{grid-template-columns:repeat(4,1fr)}
+.seg label{position:relative;display:block;cursor:pointer}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:block;padding:.38rem .45rem;text-align:center;font-size:.84rem;border-left:1px solid var(--line);height:100%}
+.seg label:first-child span{border-left:none}
+.seg input:checked+span{background:var(--ink);color:var(--panel);font-weight:700}
+.seg label.sR input:checked+span{background:var(--right);color:#fff}
+.seg label.sL input:checked+span{background:var(--left);color:#fff}
+.seg input:focus-visible+span{outline:3px solid var(--focus);outline-offset:-3px}
+.row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.3rem}
+.row label{font-size:.88rem}
+input[type=number],input[type=text],select{border:1px solid var(--line);border-radius:5px;padding:.3rem .45rem;background:var(--panel);min-width:0}
+input[type=number]{width:5.2rem}
+input:disabled{opacity:.45}
+input[type=range]{width:100%;accent-color:var(--ink)}
+.unit{color:var(--muted);font-size:.85rem}
+.msg:empty{display:none}
+.msg{margin-top:.35rem;font-size:.82rem;padding:.3rem .5rem;border-radius:5px}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+.msg.amber{background:var(--amber-soft);color:var(--amber)}
+.msg.info{background:var(--paper);color:var(--muted)}
+.sidecols{display:grid;grid-template-columns:1fr;gap:.75rem}
+.sidebox{border-radius:6px;padding:.1rem .6rem .5rem;border:1px solid var(--line)}
+.sidebox.R{border-top:4px solid var(--right)}
+.sidebox.L{border-top:4px solid var(--left)}
+.sidebox h4{margin:.4rem 0 .1rem;font-size:.95rem}
+.sidebox.R h4{color:var(--right)}
+.sidebox.L h4{color:var(--left)}
+.sidebox .ctl{padding:.45rem 0}
+.sidebox .seg{grid-template-columns:1fr}
+.sidebox .seg span{border-left:none;border-top:1px solid var(--line);text-align:left}
+.sidebox .seg label:first-child span{border-top:none}
+.minibtn{border:1px solid var(--line);background:transparent;border-radius:5px;padding:.2rem .45rem;font-size:.8rem;cursor:pointer}
+table.rom{width:100%;border-collapse:collapse;font-size:.85rem}
+table.rom th,table.rom td{padding:.35rem .25rem;border-top:1px solid var(--line);vertical-align:top;text-align:left}
+table.rom input[type=text]{width:100%;max-width:8rem}
+table.rom tr.lab td{border-top:1px solid var(--line);padding-bottom:0}
+table.rom tr.inp td{border-top:none;padding-top:.15rem}
+table.rom .n{font-weight:700;width:1.6rem}
+table.rom .std{color:var(--muted);white-space:nowrap}
+.cond{background:var(--paper);font-weight:700;font-size:.8rem;color:var(--muted)}
+.at{display:block;margin-top:.2rem;color:var(--muted);font-size:.76rem}
+.at input{max-width:3.8rem}
+.err{display:block;color:var(--warn);font-size:.76rem;margin-top:.15rem}
+
+/* ----- view ----- */
+#viewcol{padding:.75rem 1rem 1rem;min-width:0;position:sticky;top:0;align-self:start}
+@media (max-width:760px){#viewcol{position:static}}
+.viewbar{display:flex;flex-wrap:wrap;gap:.35rem 1rem;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+.viewbar h2{font-size:1.05rem;margin:0}
+.toggles{display:flex;flex-wrap:wrap;gap:.2rem .9rem;font-size:.86rem}
+.toggles label{display:flex;gap:.3rem;align-items:center;cursor:pointer}
+.svgwrap{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#view{display:block;width:100%;height:auto;max-height:calc(100vh - 190px)}
+.legend{display:flex;flex-wrap:wrap;gap:.3rem 1rem;font-size:.8rem;color:var(--muted);margin-top:.45rem}
+.legend svg{vertical-align:middle;margin-right:.2rem}
+
+/* ----- readouts ----- */
+#readouts{border-left:1px solid var(--line);background:var(--panel);padding:.75rem 1rem 1.25rem;overflow:auto;max-height:calc(100vh - 110px)}
+#readouts h3{font-size:1rem;margin:1rem 0 .35rem}
+#readouts h3:first-child{margin-top:.1rem}
+table.ro{width:100%;border-collapse:collapse;font-size:.84rem}
+table.ro th,table.ro td{padding:.28rem .3rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+table.ro th{color:var(--muted);font-weight:400}
+table.ro td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.hl td{background:var(--amber-soft)}
+.tagR{color:var(--right);font-weight:700}
+.tagL{color:var(--left);font-weight:700}
+.callout{margin:.45rem 0;padding:.45rem .6rem;border-radius:6px;font-size:.85rem;background:var(--paper)}
+.callout.amber{background:var(--amber-soft)}
+.flags{list-style:none;margin:0;padding:0;font-size:.84rem}
+.flags li{padding:.35rem .5rem;border-radius:5px;margin:.25rem 0}
+.flags li.warn{background:var(--warn-soft);color:var(--warn)}
+.flags li.amber{background:var(--amber-soft);color:var(--amber)}
+.flags li.info{background:var(--paper);color:var(--muted)}
+
+/* ----- pages ----- */
+.pagenav{display:flex;gap:.25rem;align-self:center}
+.pagenav button{border:1px solid var(--line);background:transparent;padding:.45rem .9rem;border-radius:999px;cursor:pointer;font-weight:700}
+.pagenav button[aria-current="page"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.status{align-self:center;font-size:.85rem;color:var(--ok);min-width:0}
+.btn.armed{background:var(--warn);border-color:var(--warn);color:#fff}
+[hidden]{display:none!important}
+.viewseg{margin:0 0 .5rem;background:var(--panel)}
+.modebar{display:flex;align-items:center;gap:.6rem;padding:.7rem 1rem;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+.modebar b{font-size:.9rem}
+.modeseg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex:1}
+.modeseg label{position:relative;cursor:pointer}
+.modeseg input{position:absolute;opacity:0;inset:0;margin:0}
+.modeseg span{display:block;text-align:center;padding:.4rem .5rem;font-weight:700;font-size:.9rem}
+.modeseg input:checked+span{background:var(--ink);color:var(--panel)}
+.modeseg input:focus-visible+span{outline:3px solid var(--focus);outline-offset:-3px}
+.svgwrap svg.side{display:block;width:100%;height:auto;border-bottom:1px solid var(--line)}
+.sumpage{max-width:60rem;margin:0 auto;padding:1.25rem 1.25rem 2rem}
+.sumintro h2{margin:0 0 .25rem;font-size:1.4rem}
+.sumintro p{margin:0 0 .75rem;color:var(--muted);max-width:65ch}
+.sumcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:1rem 1.25rem;margin-top:1rem}
+.sumtext{font-size:1rem;line-height:1.55;margin:.5rem 0 0;max-width:80ch}
+.sumtext h4{margin:1rem 0 .35rem;font-size:.95rem;padding-bottom:.2rem;border-bottom:1px solid var(--line)}
+.sumtext h4:first-child{margin-top:0}
+.sumtext p{margin:.3rem 0}
+.sumtext p.sub{margin:.05rem 0 .4rem 1.2rem;color:var(--muted);font-size:.92rem}
+/* ----- summary ----- */
+#summarysec{grid-column:1 / -1;border-top:1px solid var(--line);background:var(--panel);padding:1rem 1.25rem 1.5rem}
+#summarysec h2{font-size:1.1rem;margin:0 0 .2rem}
+.sumgrid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media (max-width:900px){.sumgrid{grid-template-columns:1fr}}
+.sumgrid textarea{width:100%;min-height:22rem;border:1px solid var(--line);border-radius:6px;padding:.6rem;font-size:.85rem;line-height:1.45;background:var(--paper);resize:vertical}
+.sumhead{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.3rem}
+.sumhead h3{margin:0;font-size:.98rem}
+footer{padding:.8rem 1.25rem 1.5rem;color:var(--muted);font-size:.8rem}
+@media print{#inputs,.actions,.toggles,.pagenav,.notice{display:none} main{grid-template-columns:1fr} .sumcard{border:none;padding:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Supine postural modelling tool</h1>
+    <p class="sub">Presenting posture in lying &amp; sitting · based on LD Physio Assessment Parts B &amp; C (modified MPD 24-7) · v0.6.1</p>
+  </div>
+  <nav class="pagenav" aria-label="Pages">
+    <button type="button" data-page="model" aria-current="page">Model</button>
+    <button type="button" data-page="summary" aria-current="false">Summary for notes</button>
+  </nav>
+  <div class="actions">
+    <span id="status" role="status" class="status"></span>
+    <button class="btn" id="exA" type="button">Load example A (windswept to the L)</button>
+    <button class="btn" id="exB" type="button">Load example B (S-shaped curve)</button>
+    <button class="btn primary" id="reset" type="button">Reset to neutral</button>
+  </div>
+</header>
+<p class="notice"><strong>Visual education and communication aid only.</strong> This is not a measurement or diagnostic tool; angles are approximate conversions from the paper assessment. Do not enter names, dates of birth, NHS numbers, addresses or photos. Nothing you enter is saved.</p>
+
+<main id="page-model">
+  <div>
+    <div class="modebar">
+      <b>Posture</b>
+      <div class="modeseg" role="radiogroup" aria-label="Posture being assessed">
+        <label><input type="radio" name="posturemode" value="lying" checked><span>Lying (supine)</span></label>
+        <label><input type="radio" name="posturemode" value="sitting"><span>Sitting</span></label>
+      </div>
+    </div>
+    <form id="inputs" autocomplete="off" onsubmit="return false"></form>
+  </div>
+
+  <section id="viewcol" aria-labelledby="viewtitle">
+    <div class="viewbar">
+      <h2 id="viewtitle">Lying posture – view from above</h2>
+      <div class="toggles">
+        <label><input type="checkbox" id="tSkel" checked> Landmarks &amp; skeleton</label>
+        <label><input type="checkbox" id="tGhost" checked> Neutral outline</label>
+        <label><input type="checkbox" id="tShade" checked> Depth shading</label>
+        <label><input type="checkbox" id="tLabels" checked> Labels</label>
+      </div>
+    </div>
+    <div class="seg viewseg" id="viewswitch" role="radiogroup" aria-label="Choose view"></div>
+    <div class="svgwrap">
+      <svg id="view" viewBox="-104 -4 234 226" role="img" aria-label="Top-down view of the body lying supine"></svg>
+      <svg id="sideL" class="side" viewBox="-14 -80 240 90" role="img" aria-label="Side view from the service user's left" style="display:none"></svg>
+      <svg id="sideR" class="side" viewBox="-14 -80 240 90" role="img" aria-label="Side view from the service user's right" style="display:none"></svg>
+      <svg id="seatFront" class="side" viewBox="-40 -96 80 150" role="img" aria-label="Seated front view" style="display:none"></svg>
+      <svg id="seatSideL" class="side" viewBox="-16 -96 90 150" role="img" aria-label="Seated side view from the left" style="display:none"></svg>
+      <svg id="seatSideR" class="side" viewBox="-16 -96 90 150" role="img" aria-label="Seated side view from the right" style="display:none"></svg>
+    </div>
+    <div class="legend" id="legendSide" style="display:none">
+      <span><svg width="14" height="14"><polygon points="7,1 13,13 1,13" fill="currentColor"/></svg>Near-side landmark</span>
+      <span><svg width="14" height="14"><polygon points="7,1 13,13 1,13" fill="none" stroke="currentColor" stroke-width="2"/></svg>Far-side landmark</span>
+      <span>Lighter limbs = nearer to you; darker = far side (dashed bones)</span>
+      <span>Grey band = supporting surface; heights in cm</span>
+    </div>
+    <div class="legend" id="legendTop">
+      <span><svg width="14" height="14"><polygon points="7,1 13,13 1,13" fill="none" stroke="currentColor" stroke-width="2"/></svg>ASIS</span>
+      <span><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>Acromion</span>
+      <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Patella + facing direction</span>
+      <span>Lighter shading = higher off the surface</span>
+      <span>Dashed = neutral reference</span>
+    </div>
+    <div class="legend" id="legendSeat" style="display:none">
+      <span><svg width="14" height="14"><polygon points="7,1 13,13 1,13" fill="none" stroke="currentColor" stroke-width="2"/></svg>ASIS</span>
+      <span><svg width="14" height="14"><rect x="2" y="2" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>Acromion</span>
+      <span>Grey dashed line = seat level (feet float / footplate; no floor drawn)</span>
+      <span>Heights shown relative to the seat</span>
+    </div>
+  </section>
+
+  <aside id="readouts" aria-live="polite"></aside>
+
+</main>
+
+<div id="page-summary" hidden>
+  <div class="sumpage">
+    <div class="sumintro">
+      <h2>Summary in assessment sheet wording</h2>
+      <p>Generated from the values on the Model page. Check every line against your own observation before copying anything into clinical notes.</p>
+      <div class="actions"><button class="btn" type="button" data-page="model">Back to model</button><button class="btn" type="button" onclick="window.print()">Print</button></div>
+    </div>
+    <article class="sumcard">
+      <div class="sumhead"><h3>Part B – presenting posture in current lying</h3><button class="btn primary" type="button" data-copy="sumB">Copy Part B</button></div>
+      <div id="sumB" class="sumtext"></div>
+    </article>
+    <article class="sumcard">
+      <div class="sumhead"><h3>Part C – critical limitations (sitting 1/3/6-9, lying &amp; standing 1-5)</h3><button class="btn primary" type="button" data-copy="sumC">Copy Part C</button></div>
+      <div id="sumC" class="sumtext"></div>
+    </article>
+  </div>
+</div>
+<footer>Joint range notation and standard ranges: Ryf C &amp; Weymann A (1999) <i>Range of Motion – AO Neutral-0 Method</i>. Assessment structure: modified copy of Management of Physical Disability 24-7, Oxford Centre for Enablement. Segment lengths use approximate adult proportions. Clinical decisions remain with the qualified team.</footer>
+
+<script>
+// ===================== POSTURE MODEL (pure logic, no DOM) =====================
+// World axes (service user supine on the surface):
+//   X = towards the service user's LEFT (screen right in top view)
+//   Y = towards the FEET (screen down in top view)
+//   Z = up, away from the surface (anterior)
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const SIDE = { R: -1, L: 1 };
+const SIDE_WORD = { R: 'right', L: 'left' };
+
+function Mmul(A, B) { const C = new Array(9); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i * 3 + j] = A[i * 3] * B[j] + A[i * 3 + 1] * B[3 + j] + A[i * 3 + 2] * B[6 + j]; return C; }
+function Mv(M, v) { return [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]]; }
+function chain(...Ms) { return Ms.reduce(Mmul); }
+function Rx(d) { const t = d * D2R, c = Math.cos(t), s = Math.sin(t); return [1, 0, 0, 0, c, -s, 0, s, c]; } // +Y -> +Z for d>0
+function Ry(d) { const t = d * D2R, c = Math.cos(t), s = Math.sin(t); return [c, 0, s, 0, 1, 0, -s, 0, c]; } // +Z -> +X for d>0
+function Rz(d) { const t = d * D2R, c = Math.cos(t), s = Math.sin(t); return [c, -s, 0, s, c, 0, 0, 0, 1]; } // +X -> +Y for d>0
+const vadd = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const vsub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const vsc = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+const norm = a => { const n = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / n, a[1] / n, a[2] / n]; };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const r0n = v => Math.round(v);
+function num(v, def = 0) { const n = parseFloat(v); return Number.isFinite(n) ? n : def; }
+function cmToDeg(cm, w) { return Math.asin(clamp(cm / w, -1, 1)) * R2D; }
+function dirVal(o, pos) { if (!o || o.dir === 'N') return 0; const v = Math.abs(num(o.val)); return o.dir === pos ? v : -v; }
+
+// ---------- Default state ----------
+function dv(max) { return { dir: 'N', val: '' }; }
+function applyLimit(st, out, noRom, id, key, side, value, joint) {
+  if (noRom) return value;
+  const r = romRange(st, key, side);
+  let v = value, clamped = false;
+  if (v < r.min) { v = r.min; clamped = true; }
+  if (v > r.max) { v = r.max; clamped = true; }
+  const restrictedMax = r.max < r.std.max, restrictedMin = r.min > r.std.min;
+  const atEnd = !clamped && r.source === 'entered' && ((restrictedMax && Math.abs(v - r.max) <= 3) || (restrictedMin && Math.abs(v - r.min) <= 3));
+  out.limits.push({ id, key, side, joint, desired: value, applied: v, clamped, atEnd, rom: r });
+  return v;
+}
+// A presenting posture (the fields the sheet repeats for seating and for lying).
+function posture(seated) {
+  const leg = () => ({ abd: dv(), rot: dv(), hipFlex: seated ? '90' : '', kneeFlex: seated ? '90' : '', kneeHeight: '' });
+  const arm = () => ({ abd: seated ? '8' : '10', flex: '', elbow: seated ? '90' : '', forearm: seated ? 'out' : 'ceiling' });
+  const foot = () => ({ dfpf: dv(), inev: dv(), supPro: 'N' });
+  return {
+    pelvis: { rot: dv(), obl: dv(), tilt: { dir: 'N', val: '1' } },
+    shoulders: { rot: dv(), obl: dv() },
+    legs: { R: leg(), L: leg() },
+    trunk: { type: 'none', convex: 'R', apex: 'thoracic', mag: '25', comp: 'comp', shift: '', lordosis: { dir: 'N', val: '1' }, kyphosis: { dir: 'N', val: '1' }, cervical: { dir: 'N', val: '1' }, lean: { dir: 'N', val: '' } },
+    head: { flex: dv(), side: dv(), rot: dv() },
+    arms: { R: arm(), L: arm() },
+    feet: { R: foot(), L: foot() },
+    supports: [],
+  };
+}
+function defaultState() {
+  const rom = {}; for (const k of Object.keys(ROM_ITEMS)) { rom[k] = ROM_ITEMS[k].sided ? { R: '', L: '', atR: '', atL: '' } : { v: '' }; }
+  return {
+    mode: 'lying',
+    body: { stature: '', asisWidth: '', shoulderWidth: '' },
+    spinal: { R: '', L: '' },
+    rom,
+    lying: posture(false),
+    sitting: posture(true),
+  };
+}
+// Merge shared fields with the active posture, for solve().
+function merged(state) { return { body: state.body, spinal: state.spinal, rom: state.rom, ...state[state.mode] }; }
+
+// ---------- Joint range of movement (AO Neutral-0) ----------
+const ROM_ITEMS = {
+  i1: { n: 1, label: 'Hip flexion to extension', std: '120/0/15', dirs: ['flexion', 'extension'], sided: true, cond: 'Side lying' },
+  i2: { n: 2, label: 'Knee flexion to extension (hip as close to neutral as possible)', std: '130/0/5', dirs: ['flexion', 'extension'], sided: true, at: 'Hip flexion angle', cond: 'Side lying' },
+  i3: { n: 3, label: 'Neck flexion to extension', std: '40/0/40', dirs: ['flexion', 'extension'], sided: false, cond: 'Side lying' },
+  i4: { n: 4, label: 'Hip abduction to adduction (hip as close to neutral as possible)', std: '40/0/30', dirs: ['abduction', 'adduction'], sided: true, at: 'Hip flexion angle', cond: 'Supine, hips near neutral' },
+  i5: { n: 5, label: 'Ankle dorsi to plantarflexion (hip and knee as close to neutral as possible)', std: '10/0/40', dirs: ['dorsiflexion', 'plantarflexion'], sided: true, at: 'Knee flexion angle', cond: 'Supine, hips near neutral' },
+  i6: { n: 6, label: 'Hip abduction to adduction (hip as close to 90° as possible)', std: '80/0/20', dirs: ['abduction', 'adduction'], sided: true, at: 'Hip flexion angle', cond: 'Supine, hips near 90°' },
+  i7: { n: 7, label: 'Hip external to internal rotation (hip as close to 90° as possible)', std: '40/0/35', dirs: ['external rotation', 'internal rotation'], sided: true, cond: 'Supine, hips near 90°' },
+  i8: { n: 8, label: 'Knee flexion to extension (hip as close to 90° as possible)', std: '130/30/0', dirs: ['flexion', 'extension'], sided: true, cond: 'Supine, hips near 90°' },
+  i9: { n: 9, label: 'Ankle dorsi to plantarflexion (hip and knee as close to 90° as possible)', std: '30/0/40', dirs: ['dorsiflexion', 'plantarflexion'], sided: true, at: 'Knee flexion angle', cond: 'Supine, hips near 90°' },
+  i10: { n: 10, label: 'Cervical rotation right to left', std: '70/0/70', dirs: ['rotation to the R', 'rotation to the L'], sided: false, cond: 'Cervical spine' },
+  i11: { n: 11, label: 'Cervical lateral flexion right to left', std: '45/0/45', dirs: ['lateral flexion to the R', 'lateral flexion to the L'], sided: false, cond: 'Cervical spine' },
+};
+
+// Returns {empty} | {error} | {min,max} with the FIRST direction positive.
+function parseRom(str) {
+  const t = String(str || '').replace(/\s+/g, '');
+  if (!t) return { empty: true };
+  const parts = t.split('/');
+  if (parts.length !== 3) return { error: 'Enter three numbers separated by slashes, e.g. 120/0/15.' };
+  if (!parts.every(p => /^\d{1,3}$/.test(p))) return { error: 'Use whole degrees only – no minus signs, decimals or letters (e.g. 130/20/0).' };
+  const [a, b, c] = parts.map(Number);
+  if (a > 180 || b > 180 || c > 180) return { error: 'A value above 180° is not plausible here.' };
+  if (b === 0) return { min: -c, max: a };
+  if (c === 0) {
+    if (b > a) return { error: `In ${a}/${b}/0 the middle number is where movement starts, so it cannot be larger than the first number.` };
+    return { min: b, max: a };
+  }
+  if (a === 0) {
+    if (b > c) return { error: `In 0/${b}/${c} the middle number is where movement starts, so it cannot be larger than the last number.` };
+    return { min: -c, max: -b };
+  }
+  return { error: 'If neutral is passed, the middle number must be 0 (e.g. 120/0/15). If neutral is not reached, put the 0 first or last (e.g. 130/20/0).' };
+}
+function fmtRom(min, max) {
+  const r = v => Math.round(v);
+  if (min <= 0 && max >= 0) return `${r(max)}/0/${r(-min)}`;
+  if (min > 0) return `${r(max)}/${r(min)}/0`;
+  return `0/${r(-max)}/${r(-min)}`;
+}
+function romRange(st, key, side) {
+  const it = ROM_ITEMS[key];
+  const raw = it.sided ? st.rom[key][side] : st.rom[key].v;
+  const p = parseRom(raw), s = parseRom(it.std);
+  if (p.error || p.empty) return { min: s.min, max: s.max, source: 'standard', text: it.std, std: s, item: it, key, invalid: !!p.error };
+  return { min: p.min, max: p.max, source: 'entered', text: String(raw).replace(/\s+/g, ''), std: s, item: it, key };
+}
+
+// ---------- Solve: inputs -> clamped joint angles -> 3D landmarks ----------
+function solve(st, opts = {}) {
+  const noRom = !!opts.noRom;
+  const mode = opts.mode || 'lying';
+  const H = clamp(num(st.body.stature, 170) || 170, 100, 200), k = H / 170;
+  const asisW = clamp(num(st.body.asisWidth, 24) || 24, 15, 40);
+  const shW = clamp(num(st.body.shoulderWidth, 38) || 38, 22, 55);
+  const L = {
+    thigh: 41.6 * k, shank: 41.8 * k, trunk: 44 * k, neck: 9 * k, upperArm: 30 * k, forearm: 24 * k, hand: 9 * k,
+    hjcHalf: asisW * 0.36, footBack: 5 * k, footFwd: 18 * k, footHalfW: 4.3 * k, P0z: 6 * k,
+  };
+  const out = { k, L, asisW, shW, mode, limits: [], notes: [], legs: {}, arms: {}, feet: {} };
+
+  // limit a signed joint value by ROM (hard limit)
+  const lim = (id, key, side, value, joint) => applyLimit(st, out, noRom, id, key, side, value, joint);
+
+  // ---- Pelvis ----
+  const pRotCm = clamp(dirVal(st.pelvis.rot, 'R'), -15, 15);
+  const pOblCm = clamp(dirVal(st.pelvis.obl, 'R'), -15, 15);
+  const tiltG = st.pelvis.tilt.dir === 'N' ? 0 : clamp(Math.round(num(st.pelvis.tilt.val, 1)), 1, 3);
+  const pelvis = {
+    rotCm: pRotCm, rotDeg: cmToDeg(pRotCm, asisW),
+    oblCm: pOblCm, oblDeg: cmToDeg(pOblCm, asisW),
+    tiltDir: st.pelvis.tilt.dir, tiltGrade: tiltG,
+    tiltDeg: (st.pelvis.tilt.dir === 'P' ? 1 : -1) * tiltG * 8, // anterior tilt = negative Rx (ASIS moves caudal + anterior)
+  };
+  const Rp = chain(Rz(pelvis.oblDeg), Ry(pelvis.rotDeg), Rx(pelvis.tiltDeg));
+  const P0 = [0, 95, L.P0z];
+  pelvis.R = Rp; pelvis.P0 = P0;
+  pelvis.asis = {}; pelvis.hjc = {}; pelvis.troch = {}; pelvis.crest = {};
+  for (const sd of ['R', 'L']) {
+    const s = SIDE[sd];
+    pelvis.asis[sd] = vadd(P0, Mv(Rp, [s * asisW / 2, -7 * k, 5 * k]));
+    pelvis.hjc[sd] = vadd(P0, Mv(Rp, [s * L.hjcHalf, 0, 0]));
+    pelvis.troch[sd] = vadd(P0, Mv(Rp, [s * (L.hjcHalf + 8 * k), 1 * k, 0]));
+    pelvis.crest[sd] = vadd(P0, Mv(Rp, [s * (asisW / 2 + 1.5 * k), -12 * k, 2 * k]));
+  }
+  pelvis.asisLift = pelvis.asis.R[2] - pelvis.asis.L[2];
+  out.pelvis = pelvis;
+
+  // ---- Shoulders & spine ----
+  const sRotCm = clamp(dirVal(st.shoulders.rot, 'R'), -20, 20);
+  const sOblCm = clamp(dirVal(st.shoulders.obl, 'R'), -20, 20);
+  const sh = { rotCm: sRotCm, rotDeg: cmToDeg(sRotCm, shW), oblCm: sOblCm, oblDeg: cmToDeg(sOblCm, shW) };
+  const Rsh = chain(Rz(sh.oblDeg), Ry(sh.rotDeg));
+  sh.R = Rsh;
+
+  const tr = st.trunk;
+  const convex = tr.convex === 'L' ? 1 : -1; // world X direction of the primary convexity
+  const mag = tr.type === 'none' ? 0 : clamp(num(tr.mag, 0), 0, 90);
+  const shift = tr.type !== 'none' && tr.comp === 'decomp' ? convex * clamp(Math.abs(num(tr.shift, 0)), 0, 20) : 0;
+  const L5 = vadd(P0, Mv(Rp, [0, -9 * k, -2 * k]));
+  // antero/posterior curvature (visual grades; 'inc' = increased, 'flat' = flattened)
+  const grade = o => (!o || o.dir === 'N') ? 0 : clamp(Math.round(num(o.val, 1)), 1, 3) * (o.dir === 'inc' ? 1 : -1);
+  const gLord = grade(tr.lordosis), gKyph = grade(tr.kyphosis), gCerv = grade(tr.cervical);
+  const lordAmp = gLord >= 0 ? 1.5 * k * (1 + 0.7 * gLord) : 1.5 * k * Math.max(-0.6, 1 + 0.55 * gLord); // typical lumbar lift ≈1.5 cm
+  const kyLift = gKyph > 0 ? 2.8 * k * gKyph : 0.4 * k * gKyph; // increased kyphosis lifts upper thoracic spine, shoulders and head
+  const cervOffset = gCerv > 0 ? -8 * gCerv : 5 * -gCerv; // +flex / -ext added to head position
+  const C7 = [shift, L5[1] - L.trunk, 6 * k + kyLift];
+  sh.C7 = C7;
+  const t0 = Mv(Rp, [0, -1, 0]), t1 = Mv(Rsh, [0, -1, 0]);
+  const seg = Math.hypot(C7[0] - L5[0], C7[1] - L5[1]);
+  const apexPos = { cervical: 0.93, thoracic: 0.62, thoracolumbar: 0.42, lumbar: 0.2 }[tr.apex] ?? 0.62;
+  const bump = (t, c, a, b) => { // smooth window, zero slope at the ends, peak 1 at c
+    if (t <= a || t >= b) return 0;
+    const u = t < c ? 0.5 * (t - a) / (c - a) : 0.5 + 0.5 * (t - c) / (b - c);
+    return Math.sin(Math.PI * u) ** 2;
+  };
+  const curves = [];
+  if (tr.type === 'C') {
+    const a = Math.max(0, apexPos - 0.5), b = Math.min(1, apexPos + 0.5);
+    curves.push({ c: apexPos, a, b, sign: convex, mag });
+  } else if (tr.type === 'S') {
+    const a = Math.max(0, apexPos - 0.3), b = Math.min(1, apexPos + 0.3);
+    curves.push({ c: apexPos, a, b, sign: convex, mag });
+    const c2 = apexPos >= 0.45 ? 0.2 : 0.7;
+    curves.push({ c: c2, a: Math.max(0, c2 - 0.28), b: Math.min(1, c2 + 0.28), sign: -convex, mag: mag * 0.7 });
+  }
+  // convert "visual angle" to peak displacement: total tangent change ≈ 2·atan(A·π/len)
+  for (const cv of curves) { const len = seg * (cv.b - cv.a); cv.A = (len / Math.PI) * Math.tan((cv.mag / 2) * D2R) * cv.sign; }
+  const N = 32, spine = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, t2 = t * t, t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
+    const p = [0, 1, 2].map(j => h00 * L5[j] + h10 * t0[j] * seg + h01 * C7[j] + h11 * t1[j] * seg);
+    let dx = 0; for (const cv of curves) dx += cv.A * bump(t, cv.c, cv.a, cv.b);
+    p[0] += dx;
+    const ss = t <= 0.5 ? 0 : t >= 1 ? 1 : ((u) => u * u * (3 - 2 * u))((t - 0.5) / 0.5);
+    p[2] += lordAmp * bump(t, 0.2, 0, 0.48) + kyLift * (ss - h01); spine.push({ t, p, rot: pelvis.rotDeg + (sh.rotDeg - pelvis.rotDeg) * t });
+  }
+  for (let i = 0; i <= N; i++) { // tangents in the XY plane
+    const a = spine[Math.max(0, i - 1)].p, b = spine[Math.min(N, i + 1)].p;
+    const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+    spine[i].T = [dx / l, dy / l];
+  }
+  out.spine = spine; out.curves = curves; out.trunk = { type: tr.type, mag, shift, convex, apex: tr.apex, comp: tr.comp };
+  out.sagittal = { gLord, gKyph, gCerv, lordAmp, kyLift, cervOffset };
+  // side-view torso profile (posterior surface and anterior surface along the spine)
+  const offBack = t => (4 + 2 * t) * k;
+  const depth = t => { const pts = [[0, 10], [0.3, 14], [0.65, 18.5], [0.9, 14.5], [1, 10]]; let i = 0; while (i < pts.length - 2 && t > pts[i + 1][0]) i++; const [a0, b0] = pts[i], [a1, b1] = pts[i + 1]; return (b0 + (b1 - b0) * (t - a0) / (a1 - a0)) * k; };
+  out.torsoSide = {
+    post: spine.map(s => [s.p[0], s.p[1], Math.max(0, s.p[2] - offBack(s.t))]),
+    ant: spine.map(s => [s.p[0], s.p[1], s.p[2] + depth(s.t)]),
+    pelvis: { pubis: vadd(P0, Mv(Rp, [0, 8 * k, 7 * k])), groin: vadd(P0, Mv(Rp, [0, 12 * k, 3 * k])), buttock: vadd(P0, Mv(Rp, [0, 7 * k, -6 * k])), sacrum: vadd(P0, Mv(Rp, [0, -3 * k, -5 * k])) },
+  };
+  { let g = 0; spine.forEach(s => { if (s.t > 0.05 && s.t < 0.45) g = Math.max(g, s.p[2] - offBack(s.t)); }); out.sagittal.lumbarGap = g; }
+  sh.acromion = {};
+  for (const sd of ['R', 'L']) sh.acromion[sd] = vadd(C7, Mv(Rsh, [SIDE[sd] * shW / 2, 2 * k, 0]));
+  sh.acromionLift = sh.acromion.R[2] - sh.acromion.L[2];
+  out.shoulders = sh;
+
+  // ---- Lower limbs ----
+  for (const sd of ['R', 'L']) {
+    const s = SIDE[sd], lg = st.legs[sd], ft = st.feet[sd];
+    // ROM items applied depend on the posture context, matching the sheet:
+    //   LYING view uses items 1-5; SITTING uses items 1, 3, 6-9.
+    const abdKey = mode === 'sitting' ? 'i6' : 'i4';
+    const kneeKey = mode === 'sitting' ? 'i8' : 'i2';
+    const ankleKey = mode === 'sitting' ? 'i9' : 'i5';
+    const hipFlexIn = clamp(num(lg.hipFlex, 0), 0, 130);
+    const hipFlex = lim(`legs.${sd}.hipFlex`, 'i1', sd, hipFlexIn, 'hip flexion');
+    const abd = lim(`legs.${sd}.abd`, abdKey, sd, clamp(dirVal(lg.abd, 'abd'), -60, 90), 'hip abduction/adduction');
+    // Hip rotation: the sheet has no lying rotation item, so in lying we use the standard rotation
+    // range as a soft reference only (item 7 is a sitting measurement and is not read here).
+    let er;
+    if (mode === 'sitting') {
+      er = lim(`legs.${sd}.rot`, 'i7', sd, clamp(dirVal(lg.rot, 'er'), -80, 80), 'hip external/internal rotation');
+    } else {
+      const raw = clamp(dirVal(lg.rot, 'er'), -80, 80), stdR = parseRom('40/0/35');
+      let v = raw; if (v < stdR.min) v = stdR.min; if (v > stdR.max) v = stdR.max;
+      out.limits.push({ id: `legs.${sd}.rot`, key: null, side: sd, joint: 'hip external/internal rotation', desired: raw, applied: v, clamped: v !== raw, atEnd: false,
+        rom: { source: 'no-lying-item', text: 'no sheet item in lying', min: stdR.min, max: stdR.max, std: stdR, item: { n: '—', label: 'hip rotation in lying (no sheet item)', dirs: ['external rotation', 'internal rotation'], std: '40/0/35' } } });
+      er = v;
+    }
+    const knee = lim(`legs.${sd}.kneeFlex`, kneeKey, sd, clamp(num(lg.kneeFlex, 0), -15, 150), 'knee flexion/extension');
+    const ankle = lim(`feet.${sd}.dfpf`, ankleKey, sd, clamp(dirVal(ft.dfpf, 'df'), -80, 45), 'ankle dorsi/plantarflexion');
+    const inv = clamp(dirVal(ft.inev, 'inv'), -40, 50) + (ft.supPro === 'S' ? 8 : ft.supPro === 'P' ? -8 : 0);
+
+    const hip = pelvis.hjc[sd];
+    const geom = (hf) => {
+    const Rt = chain(Rp, Rx(hf), Rz(-s * abd), Ry(s * er));
+    const kneeP = vadd(hip, Mv(Rt, [0, L.thigh, 0]));
+    const patDir = Mv(Rt, [0, 0, 1]);
+    const patella = vadd(kneeP, vsc(patDir, 4.5 * k));
+    const Rs = chain(Rt, Rx(-knee));
+    const ankleP = vadd(kneeP, Mv(Rs, [0, L.shank, 0]));
+    const Rf = chain(Rs, Rx(ankle), Rz(s * inv));
+    const footPts = [];
+    const outline = [[0, -L.footBack], [0.9, -L.footBack * 0.6], [1, L.footFwd * 0.55], [0.75, L.footFwd], [-0.1, L.footFwd * 1.02], [-0.95, L.footFwd * 0.8], [-0.85, 0], [-0.6, -L.footBack]];
+    for (const [ux, uz] of outline) for (const yy of [4 * k, -2.5 * k]) footPts.push(vadd(ankleP, Mv(Rf, [s * ux * L.footHalfW, yy, uz])));
+    const toe = vadd(ankleP, Mv(Rf, [0, 1 * k, L.footFwd]));
+    return { kneeP, patDir, patella, ankleP, footPts, toe };
+    };
+    // Surface contact: flag (do not auto-correct) when the entered hip/knee angles would push the
+    // heel below the supporting surface, since that combination is not possible in lying.
+    const G = geom(hipFlex);
+    const belowSurface = mode === 'lying' && G.ankleP[2] < L.P0z - 1.0;
+    if (belowSurface) out.notes.push({ id: `legs.${sd}.hipFlex`, side: sd, kind: 'warn',
+      text: `${sd} leg: with hip ${r0n(hipFlex)}° and knee ${r0n(knee)}° flexion the heel would sit below the supporting surface, which is not possible in lying. Increase hip flexion, reduce knee flexion, or add support under the leg.` });
+    const kneeP = G.kneeP, patDir = G.patDir, patella = G.patella, ankleP = G.ankleP, footPts = G.footPts, toe = G.toe;
+    // The pelvis changes how the limb LOOKS on the surface. Per the sheet, the pairing differs by posture:
+    //   LYING: abd/add follows pelvic obliquity, rotation follows pelvic rotation.
+    //   SITTING: abd/add follows pelvic rotation, rotation follows pelvic obliquity.
+    const hipEffectAbd = mode === 'sitting' ? s * pelvis.rotDeg : -s * pelvis.oblDeg;
+    const hipEffectRot = mode === 'sitting' ? -s * pelvis.oblDeg : s * pelvis.rotDeg;
+    out.legs[sd] = {
+      hipFlexIn, hipFlex, abd, er, knee, ankle, inv, hip, knee3: kneeP, patella, patDir, ankle3: ankleP, footPts, toe, belowSurface,
+      popliteal: kneeP[2] - L.P0z,
+      apparentAbd: abd + hipEffectAbd, effectAbd: hipEffectAbd,
+      apparentRot: er + hipEffectRot, effectRot: hipEffectRot,
+      romAbd: abdKey, romKnee: kneeKey, romAnkle: ankleKey, romRot: mode === 'sitting' ? 'i7' : null,
+    };
+  }
+  const aR = out.legs.R.apparentAbd, aL = out.legs.L.apparentAbd;
+  out.windswept = (aL > 3 && aR < -3) ? 'L' : (aR > 3 && aL < -3) ? 'R' : null;
+
+  // ---- Head ----
+  const hd = st.head;
+  const hFlexIn = clamp(dirVal(hd.flex, 'flex'), -60, 60);
+  const hFlex = lim('head.flex', 'i3', null, hFlexIn + cervOffset, 'neck flexion/extension (incl. cervical curve)');
+  const hRot = lim('head.rot', 'i10', null, clamp(dirVal(hd.rot, 'R'), -90, 90), 'cervical rotation');
+  const hSide = lim('head.side', 'i11', null, clamp(dirVal(hd.side, 'R'), -60, 60), 'cervical lateral flexion');
+  const Rh = chain(Rsh, Rz(-hSide), Rx(-hFlex), Ry(-hRot));
+  const headC = vadd(C7, Mv(Rh, [0, -(L.neck + 9 * k), 3.6 * k]));
+  const headPts = [];
+  for (let i = 0; i < 12; i++) for (let j = 1; j < 6; j++) {
+    const th = (i / 12) * 2 * Math.PI, ph = (j / 6) * Math.PI;
+    headPts.push(vadd(headC, Mv(Rh, [7.6 * k * Math.sin(ph) * Math.cos(th), 10.5 * k * Math.cos(ph), 9 * k * Math.sin(ph) * Math.sin(th)])));
+  }
+  out.head = {
+    flex: hFlex, flexIn: hFlexIn, rot: hRot, side: hSide, R: Rh, C: headC, pts: headPts,
+    occiput: vadd(headC, Mv(Rh, [0, -1 * k, -9 * k])),
+    nose: vadd(headC, Mv(Rh, [0, 2 * k, 10 * k])), chin: vadd(headC, Mv(Rh, [0, 9.5 * k, 5 * k])),
+    ear: { R: vadd(headC, Mv(Rh, [-7.8 * k, 0, 0])), L: vadd(headC, Mv(Rh, [7.8 * k, 0, 0])) },
+    neckTop: vadd(C7, Mv(Rh, [0, -L.neck, 1 * k])),
+  };
+
+  // ---- Arms ----
+  for (const sd of ['R', 'L']) {
+    const s = SIDE[sd], a = st.arms[sd];
+    const abd = clamp(num(a.abd, 0), 0, 120), flex = clamp(num(a.flex, 0), 0, 150), elbow = clamp(num(a.elbow, 0), 0, 150);
+    const rot = a.forearm === 'across' ? -85 : a.forearm === 'out' ? 85 : 0;
+    const Ra = chain(Rsh, Rx(flex), Rz(s * abd), Ry(s * rot)); // adduction: bring the arm in toward/across the body
+    const sho = vadd(sh.acromion[sd], Mv(Rsh, [-s * 2 * k, 1.5 * k, -1 * k]));
+    const elb = vadd(sho, Mv(Ra, [0, L.upperArm, 0]));
+    const Rfa = chain(Ra, Rx(elbow));
+    const wri = vadd(elb, Mv(Rfa, [0, L.forearm, 0]));
+    const hand = vadd(wri, Mv(Rfa, [0, L.hand, 0]));
+    out.arms[sd] = { abd, flex, elbow, forearm: a.forearm, sho, elb, wri, hand, across: a.forearm === 'across' && elbow > 30 };
+  }
+
+  // ---- Spinal measurements (coracoid process to ASIS, trunk held corrected) ----
+  const cR = num(st.spinal.R, NaN), cL = num(st.spinal.L, NaN);
+  out.spinal = { R: cR, L: cL, has: Number.isFinite(cR) && Number.isFinite(cL) };
+  if (out.spinal.has) { out.spinal.diff = cR - cL; out.spinal.shorter = Math.abs(cR - cL) < 0.5 ? null : (cR < cL ? 'R' : 'L'); }
+
+  return out;
+}
+
+// Estimate hip & knee flexion from unsupported height under the knee (heel resting on the surface).
+function flexFromKneeHeight(h, L) {
+  const hh = Math.max(0, h);
+  const f = Math.asin(clamp(hh / L.thigh, 0, 1)) * R2D;
+  const sh = Math.asin(clamp(hh / L.shank, 0, 1)) * R2D;
+  return { hip: Math.round(f), knee: Math.round(f + sh) };
+}
+
+// ===================== SEATED SOLVE =====================
+// Upright world frame: X = service user's LEFT, Y = forward (anterior), Z = up. Seat top at Z = 0.
+// Landmark names match the supine solve so the drawing helpers can be shared.
+function solveSitting(st, opts = {}) {
+  const noRom = !!opts.noRom, mode = 'sitting';
+  const H = clamp(num(st.body.stature, 170) || 170, 100, 200), k = H / 170;
+  const asisW = clamp(num(st.body.asisWidth, 24) || 24, 15, 40);
+  const shW = clamp(num(st.body.shoulderWidth, 38) || 38, 22, 55);
+  const L = {
+    thigh: 41.6 * k, shank: 41.8 * k, trunk: 47 * k, neck: 9 * k, upperArm: 30 * k, forearm: 24 * k, hand: 9 * k,
+    hjcHalf: asisW * 0.36, footBack: 5 * k, footFwd: 18 * k, footHalfW: 4.3 * k,
+  };
+  const out = { k, L, asisW, shW, mode, seated: true, limits: [], notes: [], legs: {}, arms: {}, feet: {} };
+  const lim = (id, key, side, value, joint) => applyLimit(st, out, noRom, id, key, side, value, joint);
+
+  // ---- Pelvis (seated) ----
+  const pRotCm = clamp(dirVal(st.pelvis.rot, 'R'), -15, 15);
+  const pOblCm = clamp(dirVal(st.pelvis.obl, 'R'), -15, 15);
+  const tiltG = st.pelvis.tilt.dir === 'N' ? 0 : clamp(Math.round(num(st.pelvis.tilt.val, 1)), 1, 3);
+  const rotDeg = cmToDeg(pRotCm, asisW), oblDeg = cmToDeg(pOblCm, asisW);
+  const tiltDeg = (st.pelvis.tilt.dir === 'A' ? -1 : 1) * tiltG * 9; // anterior tips ASIS forward+down
+  const pelvis = { rotCm: pRotCm, rotDeg, oblCm: pOblCm, oblDeg, tiltDir: st.pelvis.tilt.dir, tiltGrade: tiltG, tiltDeg };
+  // obliquity about forward Y (up on R = R higher); rotation about vertical Z (fwd on R = R forward); tilt about ML X
+  const Rp = chain(Ry(oblDeg), Rz(-rotDeg), Rx(tiltDeg));
+  const P0 = [0, 0, 8 * k]; // pelvis reference near hip-joint height above the seat
+  pelvis.R = Rp; pelvis.P0 = P0; pelvis.asis = {}; pelvis.hjc = {}; pelvis.troch = {}; pelvis.it = {}; pelvis.psis = {};
+  for (const sd of ['R', 'L']) {
+    const s = SIDE[sd];
+    pelvis.asis[sd] = vadd(P0, Mv(Rp, [s * asisW / 2, 7 * k, 5 * k]));
+    pelvis.hjc[sd] = vadd(P0, Mv(Rp, [s * L.hjcHalf, 2 * k, 0]));
+    pelvis.troch[sd] = vadd(P0, Mv(Rp, [s * (L.hjcHalf + 8 * k), 1 * k, 0]));
+    pelvis.it[sd] = vadd(P0, Mv(Rp, [s * 6 * k, -1 * k, -8 * k]));
+    pelvis.psis[sd] = vadd(P0, Mv(Rp, [s * 4 * k, -7 * k, 5 * k]));
+  }
+  pelvis.asisFwd = pelvis.asis.R[1] - pelvis.asis.L[1];
+  pelvis.asisUp = pelvis.asis.R[2] - pelvis.asis.L[2];
+  out.pelvis = pelvis;
+
+  // ---- Trunk & spine (rising vertically) ----
+  const sRotCm = clamp(dirVal(st.shoulders.rot, 'R'), -20, 20), sOblCm = clamp(dirVal(st.shoulders.obl, 'R'), -20, 20);
+  const shRotDeg = cmToDeg(sRotCm, shW), shOblDeg = cmToDeg(sOblCm, shW);
+  const Rsh = chain(Ry(shOblDeg), Rz(-shRotDeg));
+  const tr = st.trunk;
+  const convex = tr.convex === 'L' ? 1 : -1;
+  const mag = tr.type === 'none' ? 0 : clamp(num(tr.mag, 0), 0, 90);
+  const leanDir = tr.lean && tr.lean.dir && tr.lean.dir !== 'N' ? tr.lean.dir : null;
+  const leanVal = leanDir ? clamp(num(tr.lean.val, 0), 0, 30) : 0;
+  const grade = o => (!o || o.dir === 'N') ? 0 : clamp(Math.round(num(o.val, 1)), 1, 3) * (o.dir === 'inc' ? 1 : -1);
+  const gLord = grade(tr.lordosis), gKyph = grade(tr.kyphosis), gCerv = grade(tr.cervical);
+  const L5 = vadd(P0, Mv(Rp, [0, -3 * k, 9 * k]));
+  const trunkLen = L.trunk;
+  // lean: sideways (coronal) and forward (sagittal) shift of the top of the trunk
+  const leanX = leanDir === 'R' ? -1 : leanDir === 'L' ? 1 : 0;
+  const topShiftX = (tr.type !== 'none' && tr.comp === 'decomp' ? convex * clamp(Math.abs(num(tr.shift, 0)), 0, 20) : 0) + leanX * leanVal * 0.5;
+  const leanFwd = leanDir === 'fwd' ? 1 : leanDir === 'back' ? -1 : 0;
+  const topShiftY = leanFwd * leanVal * 0.6 + (gKyph > 0 ? 2 * k * gKyph : 0) + 3 * k;
+  const C7 = vadd(L5, [topShiftX, topShiftY, trunkLen]);
+  const apexPos = { cervical: 0.9, thoracic: 0.6, thoracolumbar: 0.42, lumbar: 0.22 }[tr.apex] ?? 0.6;
+  const bump = (t, c, a, b) => { if (t <= a || t >= b) return 0; const u = t < c ? 0.5 * (t - a) / (c - a) : 0.5 + 0.5 * (t - c) / (b - c); return Math.sin(Math.PI * u) ** 2; };
+  const curves = [];
+  if (tr.type === 'C') { curves.push({ c: apexPos, a: Math.max(0, apexPos - 0.5), b: Math.min(1, apexPos + 0.5), sign: convex, mag }); }
+  else if (tr.type === 'S') { curves.push({ c: apexPos, a: Math.max(0, apexPos - 0.3), b: Math.min(1, apexPos + 0.3), sign: convex, mag }); const c2 = apexPos >= 0.45 ? 0.2 : 0.7; curves.push({ c: c2, a: Math.max(0, c2 - 0.28), b: Math.min(1, c2 + 0.28), sign: -convex, mag: mag * 0.7 }); }
+  const seg = trunkLen;
+  for (const cv of curves) { const len = seg * (cv.b - cv.a); cv.A = (len / Math.PI) * Math.tan((cv.mag / 2) * D2R) * cv.sign; }
+  const N = 32, spine = [];
+  const upBase = Mv(Rp, [0, 0, 1]);
+  const t0 = [upBase[0], upBase[1], upBase[2]], t1 = [C7[0] - L5[0], C7[1] - L5[1], trunkLen];
+  const nT = Math.hypot(...t1) || 1; t1[0] /= nT / trunkLen; // keep scale ~trunkLen
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, t2 = t * t, t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
+    const p = [0, 1, 2].map(j => h00 * L5[j] + h10 * t0[j] * seg + h01 * C7[j] + h11 * t1[j]);
+    let dx = 0; for (const cv of curves) dx += cv.A * bump(t, cv.c, cv.a, cv.b);
+    p[0] += dx;
+    // AP curvature: lordosis pushes lower spine forward (+Y), kyphosis pushes mid/upper back (−Y)
+    const lord = gLord >= 0 ? 1.6 * k * (1 + 0.6 * gLord) : 1.6 * k * Math.max(-0.4, 1 + 0.5 * gLord);
+    const ky = gKyph > 0 ? 2.4 * k * gKyph : 0.5 * k * gKyph;
+    p[1] += lord * bump(t, 0.22, 0, 0.5) - ky * bump(t, 0.66, 0.35, 1);
+    spine.push({ t, p, rot: rotDeg + (shRotDeg - rotDeg) * t });
+  }
+  for (let i = 0; i <= N; i++) { const a = spine[Math.max(0, i - 1)].p, b = spine[Math.min(N, i + 1)].p; const dx = b[0] - a[0], dz = b[2] - a[2], l = Math.hypot(dx, dz) || 1; spine[i].T = [dx / l, dz / l]; }
+  out.spine = spine; out.curves = curves;
+  out.trunk = { type: tr.type, mag, convex, apex: tr.apex, comp: tr.comp, shift: topShiftX, lean: { x: leanX * leanVal, fwd: leanFwd * leanVal } };
+  out.sagittal = { gLord, gKyph, gCerv, cervOffset: gCerv > 0 ? -8 * gCerv : 5 * -gCerv };
+  const sh = { rotCm: sRotCm, rotDeg: shRotDeg, oblCm: sOblCm, oblDeg: shOblDeg, R: Rsh, C7, acromion: {} };
+  for (const sd of ['R', 'L']) sh.acromion[sd] = vadd(C7, Mv(Rsh, [SIDE[sd] * shW / 2, 1 * k, 1 * k]));
+  sh.acromionUp = sh.acromion.R[2] - sh.acromion.L[2];
+  out.shoulders = sh;
+
+  // ---- Head ----
+  const hd = st.head;
+  const hFlexIn = clamp(dirVal(hd.flex, 'flex'), -60, 60);
+  const hFlex = lim('head.flex', 'i3', null, hFlexIn + out.sagittal.cervOffset, 'neck flexion/extension (incl. cervical curve)');
+  const hRot = lim('head.rot', 'i10', null, clamp(dirVal(hd.rot, 'R'), -90, 90), 'cervical rotation');
+  const hSide = lim('head.side', 'i11', null, clamp(dirVal(hd.side, 'R'), -60, 60), 'cervical lateral flexion');
+  // neck rises (+Z) then head; flexion tips forward (+Y), side flex leans in X, rotation about Z
+  const Rh = chain(Rsh, Ry(-hSide), Rx(hFlex), Rz(-hRot));
+  const neckTop = vadd(C7, Mv(Rsh, [0, 0, L.neck]));
+  const headC = vadd(neckTop, Mv(Rh, [0, 1.5 * k, 9 * k]));
+  const headPts = [];
+  for (let i = 0; i < 12; i++) for (let j = 1; j < 6; j++) { const th = (i / 12) * 2 * Math.PI, ph = (j / 6) * Math.PI; headPts.push(vadd(headC, Mv(Rh, [7.6 * k * Math.sin(ph) * Math.cos(th), 9 * k * Math.sin(ph) * Math.sin(th), 10.5 * k * Math.cos(ph)]))); }
+  out.head = {
+    flex: hFlex, flexIn: hFlexIn, rot: hRot, side: hSide, R: Rh, C: headC, pts: headPts, neckTop,
+    nose: vadd(headC, Mv(Rh, [0, 10 * k, 1 * k])), chin: vadd(headC, Mv(Rh, [0, 6 * k, -8 * k])),
+    ear: { R: vadd(headC, Mv(Rh, [-7.8 * k, 0, 0])), L: vadd(headC, Mv(Rh, [7.8 * k, 0, 0])) },
+    occiput: vadd(headC, Mv(Rh, [0, -8 * k, 1 * k])),
+  };
+
+  // ---- Legs (seated: hips ~90°, knees ~90°) ----
+  for (const sd of ['R', 'L']) {
+    const s = SIDE[sd], lg = st.legs[sd], ft = st.feet[sd];
+    const hipFlex = clamp(num(lg.hipFlex, 90), 40, 120);
+    const abd = lim(`legs.${sd}.abd`, 'i6', sd, clamp(dirVal(lg.abd, 'abd'), -40, 90), 'hip abduction/adduction');
+    const er = lim(`legs.${sd}.rot`, 'i7', sd, clamp(dirVal(lg.rot, 'er'), -80, 80), 'hip external/internal rotation');
+    const knee = lim(`legs.${sd}.kneeFlex`, 'i8', sd, clamp(num(lg.kneeFlex, 90), 0, 140), 'knee flexion/extension');
+    const ankle = lim(`feet.${sd}.dfpf`, 'i9', sd, clamp(dirVal(ft.dfpf, 'df'), -80, 45), 'ankle dorsi/plantarflexion');
+    const inv = clamp(dirVal(ft.inev, 'inv'), -40, 50) + (ft.supPro === 'S' ? 8 : ft.supPro === 'P' ? -8 : 0);
+
+    const hip = pelvis.hjc[sd];
+    // thigh: from the hip, forward (and up/down as hip flexion departs from 90°); abduction yaws it outward,
+    // rotation spins it about its long axis; the pelvic frame couples pelvic rotation into the swing.
+    const thighTilt = 90 - hipFlex; // 0 at 90° (horizontal), <0 raises the thigh (more flexion)
+    const Rframe = chain(Rp, Rz(-s * abd), Ry(s * er));
+    const thighDir = Mv(Rframe, [0, Math.cos(thighTilt * D2R), Math.sin(thighTilt * D2R)]);
+    const kneeP = vadd(hip, vsc(thighDir, L.thigh));
+    const patDir = Mv(Rframe, [0, -Math.sin(thighTilt * D2R), Math.cos(thighTilt * D2R)]); // faces up/forward
+    const patella = vadd(kneeP, vsc(patDir, 4.5 * k));
+    // shank: bend down from the thigh by the knee angle about the thigh's ML axis (90° => straight down)
+    const mlAxis = norm(Mv(Rframe, [1, 0, 0]));
+    const shankDir = rotAbout(thighDir, mlAxis, -knee);
+    const ankleP = vadd(kneeP, vsc(shankDir, L.shank));
+    // foot hangs from the ankle (no floor): neutral (90°) = sole perpendicular to the shank, pointing forward.
+    // Dorsiflexion lifts the toes toward the shank; plantarflexion drops them. Inversion rolls the foot.
+    const fFwd = norm(rotAbout(shankDir, mlAxis, 90 + ankle));      // heel→toe direction (DF lifts toe, PF drops it)
+    let fUp = norm(rotAbout(fFwd, mlAxis, -90));                     // sole-normal (towards dorsum)
+    if (fUp[2] < 0) fUp = vsc(fUp, -1);
+    let fSide = mlAxis;
+    if (inv) { fUp = norm(rotAbout(fUp, fFwd, s * inv)); fSide = norm(rotAbout(fSide, fFwd, s * inv)); }
+    const soleDrop = -3 * k; // ankle sits ~3 cm above the sole
+    const footPts = [];
+    const outline = [[0, -L.footBack], [0.9, -L.footBack * 0.6], [1, L.footFwd * 0.55], [0.75, L.footFwd], [-0.1, L.footFwd * 1.02], [-0.95, L.footFwd * 0.8], [-0.85, 0], [-0.6, -L.footBack]];
+    for (const [ux, uz] of outline) for (const th of [0, 2.5 * k]) footPts.push(vadd(ankleP, vadd(vadd(vsc(fSide, s * ux * L.footHalfW), vsc(fFwd, uz)), vsc(fUp, soleDrop + th))));
+    const toe = vadd(ankleP, vadd(vsc(fFwd, L.footFwd), vsc(fUp, soleDrop)));
+    const heel = vadd(ankleP, vadd(vsc(fFwd, -L.footBack + 3 * k), vsc(fUp, soleDrop)));
+    const soleUnderAnkle = vadd(ankleP, vsc(fUp, soleDrop));
+    const hipEffectAbd = s * pelvis.rotDeg;   // sitting: abd/add follows pelvic rotation
+    const hipEffectRot = -s * pelvis.oblDeg;  // sitting: rotation follows pelvic obliquity
+    out.legs[sd] = {
+      hipFlex, abd, er, knee, ankle, inv, hip, knee3: kneeP, patella, patDir, ankle3: ankleP, footPts, toe, heel, soleUnderAnkle, belowSurface: false,
+      apparentAbd: abd + hipEffectAbd, effectAbd: hipEffectAbd, apparentRot: er + hipEffectRot, effectRot: hipEffectRot,
+      romAbd: 'i6', romKnee: 'i8', romAnkle: 'i9', romRot: 'i7', kneeOut: kneeP[0],
+    };
+  }
+  const aR = out.legs.R.apparentAbd, aL = out.legs.L.apparentAbd;
+  out.windswept = (out.legs.L.kneeOut > out.legs.R.kneeOut + 6 && aR < -2) ? 'L'
+    : (out.legs.R.kneeOut < out.legs.L.kneeOut - 6 && aL < -2) ? 'R'
+    : (aL > 3 && aR < -3) ? 'L' : (aR > 3 && aL < -3) ? 'R' : null;
+
+  // ---- Arms (resting) ----
+  for (const sd of ['R', 'L']) {
+    const s = SIDE[sd], a = st.arms[sd];
+    const abd = clamp(num(a.abd, 8), 0, 120), flex = clamp(num(a.flex, 0), -30, 150), elbow = clamp(num(a.elbow, 90), 0, 150);
+    const sho = vadd(sh.acromion[sd], Mv(Rsh, [-s * 2 * k, 0, -1 * k]));
+    // upper arm hangs down, abduction swings the elbow out to the side, flexion lifts it forward
+    let upperDir = rotAbout([0, 0, -1], [0, 1, 0], s * abd); // adduction: swing the arm in toward the body
+    upperDir = norm(rotAbout(upperDir, [1, 0, 0], flex));
+    const elb = vadd(sho, vsc(upperDir, L.upperArm));
+    // forearm bends at the elbow by the elbow-flexion angle, in the plane set by the forearm option
+    const faAxis = a.forearm === 'across' ? [0, 1, 0] : [1, 0, 0];
+    const faSign = a.forearm === 'across' ? s : a.forearm === 'ceiling' ? -1 : 1;
+    const fa = norm(rotAbout(upperDir, faAxis, faSign * elbow));
+    const wri = vadd(elb, vsc(fa, L.forearm));
+    const hand = vadd(wri, vsc(fa, L.hand));
+    out.arms[sd] = { abd, flex, elbow, forearm: a.forearm, sho, elb, wri, hand, across: a.forearm === 'across' && elbow > 30 };
+  }
+
+  const cR = num(st.spinal.R, NaN), cL = num(st.spinal.L, NaN);
+  out.spinal = { R: cR, L: cL, has: Number.isFinite(cR) && Number.isFinite(cL) };
+  if (out.spinal.has) { out.spinal.diff = cR - cL; out.spinal.shorter = Math.abs(cR - cL) < 0.5 ? null : (cR < cL ? 'R' : 'L'); }
+  return out;
+}
+const D0 = 0;
+function rotAbout(v, axis, deg) { // Rodrigues rotation of vector v about unit axis by deg
+  const a = Math.hypot(...axis) || 1, u = [axis[0] / a, axis[1] / a, axis[2] / a], t = deg * D2R, c = Math.cos(t), s = Math.sin(t);
+  const dot = u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  const cr = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  return [v[0] * c + cr[0] * s + u[0] * dot * (1 - c), v[1] * c + cr[1] * s + u[1] * dot * (1 - c), v[2] * c + cr[2] * s + u[2] * dot * (1 - c)];
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { solve, solveSitting, defaultState, merged, posture, parseRom, fmtRom, romRange, ROM_ITEMS, flexFromKneeHeight, SIDE };
+
+</script>
+<script>
+// ===================== UI =====================
+let state = defaultState();
+let currentView = 'top';
+let selectedSupport = null;
+let dragSup = null, dragOff = null;
+function showPage(p) {
+  $('page-model').hidden = p !== 'model'; $('page-summary').hidden = p !== 'summary';
+  document.querySelectorAll('[data-page]').forEach(b => b.setAttribute('aria-current', b.dataset.page === p ? 'page' : 'false'));
+  window.scrollTo(0, 0);
+}
+function showStatus(t) { const s = $('status'); s.textContent = t; clearTimeout(showStatus.tm); showStatus.tm = setTimeout(() => s.textContent = '', 2500); }
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const r0 = v => Math.round(v), r1 = v => Math.round(v * 10) / 10;
+// Shared fields live at the top level; posture fields live under state[state.mode].
+const SHARED_ROOT = new Set(['body', 'spinal', 'rom', 'mode']);
+const rootFor = p => SHARED_ROOT.has(p.split('.')[0]) ? state : state[state.mode];
+const getP = p => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), rootFor(p));
+function setP(p, v) { const ks = p.split('.'); let o = rootFor(p); for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = v; }
+
+// ---------- control builders ----------
+function dirCtl(path, label, help, opts, unit, max, step = 1, sideCols = false) {
+  const cls = sideCols ? 'seg' : 'seg';
+  const radios = opts.map(([v, t]) => {
+    const sc = /\bR\b/.test(t) && v !== 'N' ? 'sR' : /\bL\b/.test(t) && v !== 'N' ? 'sL' : '';
+    return `<label class="${sc}"><input type="radio" name="${path}.dir" value="${v}"><span>${esc(t)}</span></label>`;
+  }).join('');
+  return `<div class="ctl" id="ctl-${path}">
+    <div class="ctl-head"><span class="ctl-label" id="lbl-${path}">${esc(label)}</span><span class="ctl-out" id="out-${path}"></span></div>
+    ${help ? `<p class="help">${help}</p>` : ''}
+    <div class="${cls}" role="radiogroup" aria-labelledby="lbl-${path}">${radios}</div>
+    <div class="row"><label>Amount <input type="number" data-path="${path}.val" min="0" max="${max}" step="${step}" inputmode="decimal"> <span class="unit">${unit}</span></label></div>
+    <div class="msg" id="msg-${path}"></div></div>`;
+}
+function numCtl(path, label, unit, min, max, step = 1, help = '', extra = '') {
+  return `<div class="ctl" id="ctl-${path}">
+    <div class="ctl-head"><label class="ctl-label" for="in-${path}">${esc(label)}</label><span class="ctl-out" id="out-${path}"></span></div>
+    ${help ? `<p class="help">${help}</p>` : ''}
+    <div class="row"><input type="number" id="in-${path}" data-path="${path}" min="${min}" max="${max}" step="${step}" inputmode="decimal"> <span class="unit">${unit}</span>${extra}</div>
+    <div class="msg" id="msg-${path}"></div></div>`;
+}
+function selCtl(path, label, opts, help = '') {
+  return `<div class="ctl" id="ctl-${path}">
+    <div class="ctl-head"><label class="ctl-label" for="in-${path}">${esc(label)}</label><span class="ctl-out" id="out-${path}"></span></div>
+    ${help ? `<p class="help">${help}</p>` : ''}
+    <div class="row"><select id="in-${path}" data-path="${path}">${opts.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select></div>
+    <div class="msg" id="msg-${path}"></div></div>`;
+}
+function segCtl(path, label, opts, help = '') {
+  return `<div class="ctl" id="ctl-${path}">
+    <div class="ctl-head"><span class="ctl-label" id="lbl-${path}">${esc(label)}</span><span class="ctl-out" id="out-${path}"></span></div>
+    ${help ? `<p class="help">${help}</p>` : ''}
+    <div class="seg ${opts.length === 4 ? 'four' : ''}" role="radiogroup" aria-labelledby="lbl-${path}" style="${opts.length === 2 ? 'grid-template-columns:1fr 1fr' : ''}">
+    ${opts.map(([v, t, sc]) => `<label class="${sc || ''}"><input type="radio" name="${path}" value="${v}"><span>${esc(t)}</span></label>`).join('')}</div>
+    <div class="msg" id="msg-${path}"></div></div>`;
+}
+function group(title, body, open = false, id = '') {
+  return `<details class="grp" ${open ? 'open' : ''} ${id ? `id="${id}"` : ''}><summary>${esc(title)}<span class="count" id="count-${id}"></span></summary><div class="grp-body">${body}</div></details>`;
+}
+function sides(fn) {
+  return `<div class="sidecols">${['R', 'L'].map(sd => `<div class="sidebox ${sd}"><h4>${sd === 'R' ? 'Right (R)' : 'Left (L)'}</h4>${fn(sd)}</div>`).join('')}</div>`;
+}
+
+function buildInputs() {
+  let h = '';
+  // ROM table — placed first, as it's the most-used input
+  let t = `<p class="help">AO Neutral-0 notation, e.g. <b>120/0/15</b>. If neutral is not reached, move the 0 to the end, e.g. knee <b>130/20/0</b>. Entered ranges are hard limits; blank items use the standard range.</p><table class="rom"><thead><tr><th></th><th>R</th><th>L</th></tr></thead><tbody>`;
+  let lastCond = '';
+  for (const [key, it] of Object.entries(ROM_ITEMS)) {
+    if (it.cond !== lastCond) { t += `<tr><td colspan="3" class="cond">${esc(it.cond)}</td></tr>`; lastCond = it.cond; }
+    const atCell = sd => it.at ? `<label class="at">${esc(it.at)} <input type="number" data-path="rom.${key}.at${sd}" min="0" max="150">°</label>` : '';
+    t += `<tr class="lab"><td class="n">${it.n}</td><td colspan="2">${esc(it.label)} <span class="std">· std ${it.std}</span></td></tr>`;
+    if (it.sided) {
+      t += `<tr class="inp"><td></td>${['R', 'L'].map(sd => `<td><input type="text" data-path="rom.${key}.${sd}" aria-label="Item ${it.n} ${sd === 'R' ? 'right' : 'left'}" placeholder="${it.std}" spellcheck="false">${atCell(sd)}<span class="err" id="err-${key}-${sd}"></span></td>`).join('')}</tr>`;
+    } else {
+      t += `<tr class="inp"><td></td><td colspan="2"><input type="text" data-path="rom.${key}.v" aria-label="Item ${it.n}" placeholder="${it.std}" spellcheck="false"><span class="err" id="err-${key}-v"></span></td></tr>`;
+    }
+  }
+  t += `</tbody></table>`;
+  h += group('Joint range of movement', t, false, 'g-rom');
+  h += group('Pelvis', [
+    dirCtl('pelvis.rot', 'Pelvis: rotation', 'One ASIS forwards of the other, relative to the pelvis in neutral on the supporting surface. In supine, “forwards” = lifted away from the surface.', [['R', 'Fwd on the R'], ['N', 'Neutral'], ['L', 'Fwd on the L']], 'cm', 15, 0.5),
+    dirCtl('pelvis.obl', 'Pelvis: obliquity', 'One ASIS higher than the other. In supine “up” is taken as towards the head (assumption – confirm with your educator).', [['R', 'Up on the R'], ['N', 'Neutral'], ['L', 'Up on the L']], 'cm', 15, 0.5),
+    `<div class="ctl" id="ctl-pelvis.tilt"><div class="ctl-head"><span class="ctl-label" id="lbl-pelvis.tilt">Pelvis: anterior/posterior tilt</span><span class="ctl-out" id="out-pelvis.tilt"></span></div>
+      <p class="help">Relative to the pelvis in neutral on the supporting surface. Shows mainly as ASIS movement from above; clearer in the side views (next build).</p>
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-pelvis.tilt"><label><input type="radio" name="pelvis.tilt.dir" value="A"><span>Anterior (+)</span></label><label><input type="radio" name="pelvis.tilt.dir" value="N"><span>Neutral</span></label><label><input type="radio" name="pelvis.tilt.dir" value="P"><span>Posterior (+)</span></label></div>
+      <div class="row"><label>Grade <select data-path="pelvis.tilt.val" id="in-pelvis.tilt.val"><option value="1">+</option><option value="2">++</option><option value="3">+++</option></select></label><span class="unit">each + drawn as ≈8° (visual only)</span></div>
+      <div class="msg" id="msg-pelvis.tilt"></div></div>`,
+  ].join(''), true, 'g-pelvis');
+
+  h += group('Shoulders', [
+    dirCtl('shoulders.rot', 'Shoulders: rotation', 'One shoulder forward of the other, relative to the shoulders in neutral.', [['R', 'Fwd on the R'], ['N', 'Neutral'], ['L', 'Fwd on the L']], 'cm', 20, 0.5),
+    dirCtl('shoulders.obl', 'Shoulders: obliquity', 'One shoulder higher (towards the head) than the other.', [['R', 'Up on the R'], ['N', 'Neutral'], ['L', 'Up on the L']], 'cm', 20, 0.5),
+  ].join(''), false, 'g-shoulders');
+
+  const seated = state.mode === 'sitting';
+  const llHelp = seated
+    ? `Enter hip angles as measured on the seating sheet: abduction/adduction <b>relative to pelvic rotation</b> and rotation <b>relative to pelvic obliquity</b> (the opposite pairing to lying). The readout shows how each leg then appears in the seat.`
+    : `Enter hip angles as measured on the lying sheet: abduction/adduction <b>relative to pelvic obliquity</b> and rotation <b>relative to pelvic rotation</b>. The readout shows how each leg then appears on the surface.`;
+  h += group('Lower limbs', llHelp + sides(sd => [
+    dirCtl(`legs.${sd}.abd`, 'Abduction/adduction', '', [['abd', 'Abduction'], ['N', 'Neutral'], ['add', 'Adduction']], '°', 90),
+    dirCtl(`legs.${sd}.rot`, 'Internal/external rotation', '', [['er', 'External rotation'], ['N', 'Neutral'], ['ir', 'Internal rotation']], '°', 80),
+    seated ? numCtl(`legs.${sd}.hipFlex`, 'Hip flexion at the seat', '°', 40, 120, 1, 'Seated default 90°; more if slumped/knees raised') : numCtl(`legs.${sd}.hipFlex`, 'Hip flexion (attitude)', '°', 0, 130),
+    seated ? numCtl(`legs.${sd}.kneeFlex`, 'Knee flexion', '°', 0, 140, 1, 'Seated default 90°') : numCtl(`legs.${sd}.kneeFlex`, 'Knee flexion (attitude)', '°', -15, 150, 1, 'Negative = hyperextension'),
+    seated ? '' : numCtl(`legs.${sd}.kneeHeight`, 'Unsupported height under the knee', 'cm', 0, 60, 0.5, 'Popliteal fossa to surface', `<button type="button" class="minibtn" data-est="${sd}">Estimate hip/knee flexion</button>`),
+  ].join('')), false, 'g-legs');
+
+  h += group('Trunk – lateral curvature', [
+    segCtl('trunk.type', 'Shape of curve', [['none', 'None'], ['C', 'C-shaped'], ['S', 'S-shaped']]),
+    segCtl('trunk.convex', 'Convexity (primary curve) to the', [['R', 'R', 'sR'], ['L', 'L', 'sL']]),
+    selCtl('trunk.apex', 'Apex area (primary curve)', [['cervical', 'Cervical / cervicothoracic'], ['thoracic', 'Thoracic'], ['thoracolumbar', 'Thoracolumbar'], ['lumbar', 'Lumbar']]),
+    `<div class="ctl" id="ctl-trunk.mag"><div class="ctl-head"><label class="ctl-label" for="in-trunk.mag">Approximate size</label><span class="ctl-out" id="out-trunk.mag"></span></div>
+      <p class="help">Visual estimate of the curve only – <b>not a Cobb angle</b>. In an S-shape the secondary curve is drawn at about 70% of this.</p>
+      <input type="range" id="in-trunk.mag" data-path="trunk.mag" min="0" max="90" step="1"></div>`,
+    segCtl('trunk.comp', 'Compensation', [['comp', 'Compensated (trunk over pelvis)'], ['decomp', 'Trunk shifted towards convexity']]),
+    numCtl('trunk.shift', 'Trunk shift (if not compensated)', 'cm', 0, 20, 0.5),
+  ].join(''), false, 'g-trunk');
+
+  const gradeCtl = (path, label, help, opts) => `<div class="ctl" id="ctl-${path}"><div class="ctl-head"><span class="ctl-label" id="lbl-${path}">${esc(label)}</span><span class="ctl-out" id="out-${path}"></span></div>
+      ${help ? `<p class="help">${help}</p>` : ''}
+      <div class="seg" role="radiogroup" aria-labelledby="lbl-${path}">${opts.map(([v, t]) => `<label><input type="radio" name="${path}.dir" value="${v}"><span>${esc(t)}</span></label>`).join('')}</div>
+      <div class="row"><label>Grade <select data-path="${path}.val" id="in-${path}.val"><option value="1">+</option><option value="2">++</option><option value="3">+++</option></select></label></div>
+      <div class="msg" id="msg-${path}"></div></div>`;
+  h += group('Trunk – antero/posterior curvature', `<p class="help">Lordosis/kyphosis/cervical extension, graded visually. Best seen in the side views. Grades are drawn as approximate shapes, not measurements.</p>` + [
+    gradeCtl('trunk.lordosis', 'Lumbar lordosis', 'Increased lifts the lumbar spine off the surface.', [['flat', 'Flattened (+)'], ['N', 'Typical'], ['inc', 'Increased (+)']]),
+    gradeCtl('trunk.kyphosis', 'Thoracic kyphosis', 'Increased lifts the upper trunk, shoulders and head off the surface.', [['flat', 'Flattened (+)'], ['N', 'Typical'], ['inc', 'Increased (+)']]),
+    gradeCtl('trunk.cervical', 'Cervical extension', 'Adds to the head position (each + ≈8° extension) and is limited by ROM item 3.', [['flat', 'Flattened (+)'], ['N', 'Typical'], ['inc', 'Increased (+)']]),
+    state.mode === 'sitting' ? dirCtl('trunk.lean', 'Overall trunk lean', 'Overall impression, e.g. leaning or sliding. Shifts the top of the trunk.', [['R', 'Lean to R'], ['L', 'Lean to L'], ['N', 'Upright'], ['fwd', 'Forward'], ['back', 'Back']], 'cm', 30) : '',
+  ].join(''), false, 'g-ap');
+
+  h += group('Head, arms and feet', `<h4 style="margin:.5rem 0 0">Position of head</h4>` + [
+    dirCtl('head.flex', 'Flexed/extended', '', [['flex', 'Flexed'], ['N', 'Neutral'], ['ext', 'Extended']], '°', 60),
+    dirCtl('head.side', 'Side flexed', '', [['R', 'To the R'], ['N', 'Neutral'], ['L', 'To the L']], '°', 60),
+    dirCtl('head.rot', 'Rotated', '', [['R', 'To the R'], ['N', 'Neutral'], ['L', 'To the L']], '°', 90),
+  ].join('') + `<h4 style="margin:.8rem 0 .3rem">Attitude of the arms</h4>` + sides(sd => [
+    numCtl(`arms.${sd}.abd`, 'Arm in towards the body (adduction)', '°', 0, 120, 1, 'Brings the arm across/toward the trunk, with some internal rotation.'),
+    numCtl(`arms.${sd}.flex`, 'Arm lifted forwards (flexion)', '°', 0, 150),
+    numCtl(`arms.${sd}.elbow`, 'Elbow flexion', '°', 0, 150),
+    selCtl(`arms.${sd}.forearm`, 'Forearm when elbow bent', seated
+      ? [['out', 'Resting forwards (lap/armrest)'], ['across', 'Across the trunk'], ['ceiling', 'Raised upwards']]
+      : [['ceiling', 'Towards the ceiling'], ['across', 'Across the trunk'], ['out', 'Out to the side on the surface']]),
+  ].join('')) + `<h4 style="margin:.8rem 0 .3rem">Position of feet</h4>` + sides(sd => [
+    dirCtl(`feet.${sd}.dfpf`, 'Dorsi/plantarflexion', '', [['df', 'Dorsiflexion'], ['N', 'Neutral'], ['pf', 'Plantarflexion']], '°', 80),
+    dirCtl(`feet.${sd}.inev`, 'Inversion/eversion', '', [['inv', 'Inversion'], ['N', 'Neutral'], ['ev', 'Eversion']], '°', 50),
+    selCtl(`feet.${sd}.supPro`, 'Supination/pronation', [['N', 'Neutral'], ['S', 'Supinated'], ['P', 'Pronated']]),
+  ].join('')), false, 'g-haf');
+
+  h += group('Spinal measurements', `<p class="help">Client supine, trunk aligned and <b>held</b> in the most corrected, symmetrical position possible. A R/L difference suggests the fixed element of trunk asymmetry; later phases will use it to limit how far supports can correct the curve.</p>` +
+    sides(sd => numCtl(`spinal.${sd}`, `${sd === 'R' ? 'RIGHT' : 'LEFT'} coracoid process to ${sd === 'R' ? 'RIGHT' : 'LEFT'} ASIS`, 'cm', 10, 80, 0.5)) +
+    `<div class="msg" id="msg-spinal"></div>`, false, 'g-spinal');
+
+  h += group('Body size (optional)', [
+    numCtl('body.asisWidth', 'ASIS to ASIS width', 'cm', 15, 40, 0.5, 'Used to convert pelvic cm to angles. Default adult 24 cm.'),
+    numCtl('body.shoulderWidth', 'Shoulder width (acromion to acromion)', 'cm', 22, 55, 0.5, 'Used to convert shoulder cm to angles. Default adult 38 cm.'),
+    numCtl('body.stature', 'Approximate height', 'cm', 100, 200, 1, 'Scales segment lengths. Default 170 cm.'),
+  ].join(''), false, 'g-body');
+
+  if (state.mode === 'lying') {
+    const opts = Object.entries(SUPPORT_TYPES).map(([k, v]) => `<option value="${k}">${esc(v.name)}</option>`).join('');
+    h += group('Supports', `<p class="help">Place passive supports and drag them into position on the model. Removable and re-labelable. This is a visual layout aid — the body does not yet respond to the supports (that comes in the next phase).</p>
+      <div class="addsupport"><select id="supAdd" aria-label="Support type">${opts}</select><button type="button" class="btn" id="supAddBtn">Add support</button></div>
+      <div id="supList"></div>`, false, 'g-supports');
+  }
+
+  $('inputs').innerHTML = h;
+  renderSupportList();
+}
+
+function syncUI() {
+  document.querySelectorAll('#inputs [data-path]').forEach(el => { const v = getP(el.dataset.path); el.value = v ?? ''; });
+  document.querySelectorAll('#inputs input[type=radio]').forEach(el => { el.checked = getP(el.name) === el.value; });
+  updateDisabled();
+}
+function updateDisabled() {
+  document.querySelectorAll('#inputs input[data-path$=".val"]').forEach(el => {
+    const base = el.dataset.path.slice(0, -4); const d = getP(base + '.dir'); el.disabled = d === 'N';
+  });
+  const A = state[state.mode];
+  const tiltSel = $('in-pelvis.tilt.val'); if (tiltSel) tiltSel.disabled = A.pelvis.tilt.dir === 'N';
+  ['lordosis', 'kyphosis', 'cervical'].forEach(kk => { const e = $(`in-trunk.${kk}.val`); if (e) e.disabled = A.trunk[kk].dir === 'N'; });
+  const t = A.trunk.type === 'none';
+  ['trunk.convex', 'trunk.apex', 'trunk.mag', 'trunk.comp', 'trunk.shift'].forEach(p => {
+    const c = $('ctl-' + p); if (c) { c.style.opacity = t ? .45 : 1; c.querySelectorAll('input,select').forEach(i => i.disabled = t || (p === 'trunk.shift' && A.trunk.comp !== 'decomp')); }
+  });
+}
+
+// ---------- geometry helpers ----------
+function hull(pts) {
+  const p = pts.map(q => [q[0], q[1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (p.length < 3) return p;
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+function circ(c, r, n = 18) { const o = []; for (let i = 0; i < n; i++) { const a = i / n * 2 * Math.PI; o.push([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]); } return o; }
+function capsule(a, b, ra, rb) { return hull(circ(a, ra).concat(circ(b, rb))); }
+const pstr = pts => pts.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ');
+const isDark = () => { const t = document.documentElement.dataset.theme; return t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches); };
+function mix(c1, c2, t) { const a = c1.match(/\w\w/g).map(h => parseInt(h, 16)), b = c2.match(/\w\w/g).map(h => parseInt(h, 16)); return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join(''); }
+function shade(z, on) {
+  const [lo, hi] = isDark() ? ['34464F', '9DB4BE'] : ['9CAFB8', 'F2F6F7'];
+  if (!on) return '#' + mix(lo, hi, 0.55).slice(1);
+  return mix(lo, hi, clamp(z / 30, 0, 1));
+}
+
+// ---------- body drawing ----------
+function torsoOutline(m) {
+  const k = m.k, S = m.spine, out = { R: [], L: [] };
+  const wprof = t => { const pts = [[0, 14.5], [0.25, 12.8], [0.5, 14.2], [0.75, 15.8], [0.9, 16.4]]; let i = 0; while (i < pts.length - 2 && t > pts[i + 1][0]) i++; const [t0, w0] = pts[i], [t1, w1] = pts[i + 1]; return w0 + (w1 - w0) * clamp((t - t0) / (t1 - t0), 0, 1.2); };
+  const scaleW = t => (m.asisW / 24) * (1 - t) + (m.shW / 38) * t;
+  for (let i = 1; i < S.length - 2; i++) {
+    const s = S[i]; if (s.t > 0.9) break;
+    const w = wprof(s.t) * scaleW(s.t) * k, n = [-s.T[1], s.T[0]]; // n points to +X (service user's left)
+    const c = Math.cos(s.rot * Math.PI / 180);
+    out.L.push([s.p[0] + n[0] * w * (0.85 + 0.15 * c), s.p[1] + n[1] * w]);
+    out.R.push([s.p[0] - n[0] * w * (0.85 + 0.15 * c), s.p[1] - n[1] * w]);
+  }
+  const P = m.pelvis, Rp = P.R, P0 = P.P0, pp = (x, y) => { const v = Mv(Rp, [x, y, 0]); return [P0[0] + v[0], P0[1] + v[1]]; };
+  const pel = sd => { const s = SIDE[sd]; return [pp(s * (m.asisW / 2 + 2.5 * k), -10 * k), pp(s * (m.L.hjcHalf + 8.5 * k), 1 * k), pp(s * (m.L.hjcHalf + 6.5 * k), 9 * k), pp(s * 2.5 * k, 10 * k)]; };
+  const sh = m.shoulders, C7 = sh.C7, Rs = sh.R;
+  const sp = (x, y) => { const v = Mv(Rs, [x, y, 0]); return [C7[0] + v[0], C7[1] + v[1]]; };
+  const top = sd => { const s = SIDE[sd], w = m.shW / 2; return [sp(s * (w + 3.2 * k), 6 * k), sp(s * (w + 3 * k), 1 * k), sp(s * (w - 1 * k), -2.6 * k), sp(s * 6 * k, -3.2 * k), sp(s * 4 * k, -5 * k)]; };
+  const Rside = out.R.slice().reverse(); // top -> bottom
+  const tr = top('R'), tl = top('L');
+  const pr = pel('R'), pl = pel('L');
+  // clockwise on screen: start top-left (service user's right shoulder), go down the right side
+  const pts = [tr[4], tr[3], tr[2], tr[1], tr[0], ...Rside, pr[0], pr[1], pr[2], pr[3], pl[3], pl[2], pl[1], pl[0], ...out.L, tl[0], tl[1], tl[2], tl[3], tl[4]];
+  return pts;
+}
+function smoothPath(pts) {
+  // closed Catmull-Rom -> cubic Bézier
+  const n = pts.length; let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += `C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+  }
+  return d + 'Z';
+}
+
+function bodyParts(m, opt) {
+  // returns list of {d|pts, z, kind}
+  const k = m.k, parts = [];
+  const shadeOn = opt.shade;
+  // torso
+  const tpts = torsoOutline(m);
+  parts.push({ kind: 'torso', d: smoothPath(tpts), m });
+  // legs
+  const legOrder = ['R', 'L'].sort((a, b) => (m.legs[a].knee3[2] + m.legs[a].hip[2]) - (m.legs[b].knee3[2] + m.legs[b].hip[2]));
+  for (const sd of legOrder) {
+    const g = m.legs[sd];
+    const thigh = capsule(g.hip, g.knee3, 8 * k, 5.4 * k), shank = capsule(g.knee3, g.ankle3, 5.1 * k, 3.1 * k);
+    const zt = (g.hip[2] + g.knee3[2]) / 2 + 4, zs = (g.knee3[2] + g.ankle3[2]) / 2 + 3;
+    // draw the lower segment first if it lies under the other
+    const segs = [{ pts: thigh, z: zt }, { pts: shank, z: zs }].sort((a, b) => a.z - b.z);
+    segs.forEach(s => parts.push({ kind: 'seg', pts: s.pts, fill: shade(s.z, shadeOn) }));
+  }
+  // arms
+  for (const sd of ['R', 'L']) {
+    const a = m.arms[sd];
+    const za = (a.sho[2] + a.elb[2]) / 2 + 3, zf = (a.elb[2] + a.wri[2]) / 2 + 3 + (a.across ? 14 : 0);
+    parts.push({ kind: 'seg', pts: capsule(a.sho, a.elb, 4.6 * k, 3.6 * k), fill: shade(za, shadeOn) });
+    parts.push({ kind: 'seg', pts: capsule(a.elb, a.wri, 3.4 * k, 2.4 * k), fill: shade(zf, shadeOn) });
+    parts.push({ kind: 'seg', pts: capsule(a.wri, a.hand, 2.9 * k, 2.6 * k), fill: shade(zf + 1, shadeOn) });
+  }
+  // neck + head
+  const h = m.head;
+  parts.push({ kind: 'seg', pts: capsule(m.shoulders.C7, h.neckTop, 5.2 * k, 4.6 * k), fill: shade(10, shadeOn) });
+  parts.push({ kind: 'seg', pts: hull(h.pts), fill: shade(h.C[2] + 8, shadeOn) });
+  // feet (after legs)
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd];
+    const zf = g.footPts.reduce((s, p) => s + p[2], 0) / g.footPts.length;
+    parts.push({ kind: 'seg', pts: hull(g.footPts), fill: shade(zf + 4, shadeOn) });
+  }
+  return parts;
+}
+
+function torsoShading(m, opt, clipId) {
+  // quads per level and side, coloured by estimated height (includes twist between pelvis and shoulders)
+  const k = m.k, S = m.spine; let o = `<g clip-path="url(#${clipId})">`;
+  const W = 30 * k;
+  const levels = [];
+  // extend below L5 using pelvis frame
+  const P = m.pelvis;
+  for (let j = 3; j >= 1; j--) { const v = Mv(P.R, [0, j * 7 * k, 0]); const p = [S[0].p[0] + v[0], S[0].p[1] + v[1], S[0].p[2]]; const T = Mv(P.R, [0, -1, 0]); const l = Math.hypot(T[0], T[1]); levels.push({ p, T: [T[0] / l, T[1] / l], rot: P.rotDeg, zc: 10 }); }
+  S.forEach(s => levels.push({ p: s.p, T: s.T, rot: s.rot, zc: 10 + 6 * Math.sin(Math.PI * s.t) }));
+  for (let i = 0; i < levels.length - 1; i++) {
+    const a = levels[i], b = levels[i + 1];
+    for (const sd of ['R', 'L']) {
+      const s = SIDE[sd];
+      const na = [-a.T[1] * s, a.T[0] * s], nb = [-b.T[1] * s, b.T[0] * s];
+      const q = [[a.p[0], a.p[1]], [a.p[0] + na[0] * W, a.p[1] + na[1] * W], [b.p[0] + nb[0] * W, b.p[1] + nb[1] * W], [b.p[0], b.p[1]]];
+      const rot = (a.rot + b.rot) / 2;
+      const z = (a.zc + b.zc) / 2 + (-s) * 12 * k * Math.sin(rot * Math.PI / 180);
+      const f = shade(z, opt.shade);
+      o += `<polygon points="${pstr(q)}" fill="${f}" stroke="${f}" stroke-width="0.6"/>`;
+    }
+  }
+  return o + '</g>';
+}
+
+function drawBody(m, opt, idp) {
+  const parts = bodyParts(m, opt);
+  let o = '';
+  for (const p of parts) {
+    if (p.kind === 'torso') {
+      o += `<clipPath id="${idp}clip"><path d="${p.d}"/></clipPath>`;
+      o += `<path d="${p.d}" fill="${shade(12, opt.shade)}"/>`;
+      o += torsoShading(m, opt, idp + 'clip');
+      o += `<path d="${p.d}" fill="none" stroke="var(--stroke)" stroke-width="0.55" stroke-linejoin="round"/>`;
+    } else {
+      o += `<polygon points="${pstr(p.pts)}" fill="${p.fill}" stroke="var(--stroke)" stroke-width="0.55" stroke-linejoin="round"/>`;
+    }
+  }
+  return o;
+}
+function drawGhost(m) {
+  const parts = bodyParts(m, { shade: false });
+  return parts.map(p => p.kind === 'torso'
+    ? `<path d="${p.d}" fill="none" stroke="var(--ghost)" stroke-width="0.45" stroke-dasharray="1.6 1.2"/>`
+    : `<polygon points="${pstr(p.pts)}" fill="none" stroke="var(--ghost)" stroke-width="0.45" stroke-dasharray="1.6 1.2"/>`).join('');
+}
+
+function drawSkeleton(m, opt) {
+  const k = m.k, P = m.pelvis, Sh = m.shoulders, col = sd => sd === 'R' ? 'var(--right)' : 'var(--left)';
+  let o = '<g stroke-linecap="round" stroke-linejoin="round">';
+  // spine
+  o += `<polyline points="${pstr(m.spine.map(s => s.p))}" fill="none" stroke="var(--bone)" stroke-width="0.9"/>`;
+  m.spine.forEach((s, i) => { if (i % 2 === 0) o += `<circle cx="${s.p[0].toFixed(2)}" cy="${s.p[1].toFixed(2)}" r="${(0.75 * k).toFixed(2)}" fill="var(--panel)" stroke="var(--bone)" stroke-width="0.4"/>`; });
+  // neck to head
+  o += `<line x1="${Sh.C7[0]}" y1="${Sh.C7[1]}" x2="${m.head.neckTop[0]}" y2="${m.head.neckTop[1]}" stroke="var(--bone)" stroke-width="0.8"/>`;
+  // pelvic line and hip line
+  o += `<line x1="${P.asis.R[0]}" y1="${P.asis.R[1]}" x2="${P.asis.L[0]}" y2="${P.asis.L[1]}" stroke="var(--bone)" stroke-width="0.9"/>`;
+  o += `<line x1="${P.hjc.R[0]}" y1="${P.hjc.R[1]}" x2="${P.hjc.L[0]}" y2="${P.hjc.L[1]}" stroke="var(--bone)" stroke-width="0.4" stroke-dasharray="1 0.8"/>`;
+  // shoulder line
+  o += `<line x1="${Sh.acromion.R[0]}" y1="${Sh.acromion.R[1]}" x2="${Sh.acromion.L[0]}" y2="${Sh.acromion.L[1]}" stroke="var(--bone)" stroke-width="0.9"/>`;
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd], a = m.arms[sd], c = col(sd);
+    o += `<polyline points="${pstr([g.hip, g.knee3, g.ankle3, g.toe])}" fill="none" stroke="${c}" stroke-width="0.8"/>`;
+    o += `<polyline points="${pstr([a.sho, a.elb, a.wri, a.hand])}" fill="none" stroke="${c}" stroke-width="0.6"/>`;
+    o += `<circle cx="${g.hip[0]}" cy="${g.hip[1]}" r="${1.1 * k}" fill="${c}"/>`;
+    // ASIS: triangle, size grows with height
+    const A = P.asis[sd], sz = (1.3 + clamp((A[2] - 8) / 8, -0.4, 1.2)) * k;
+    o += `<polygon points="${pstr([[A[0], A[1] - sz * 1.1], [A[0] + sz, A[1] + sz * 0.8], [A[0] - sz, A[1] + sz * 0.8]])}" fill="var(--panel)" stroke="${c}" stroke-width="0.7"/>`;
+    // acromion square
+    const Ac = Sh.acromion[sd], as = (1.1 + clamp((Ac[2] - 6) / 8, -0.4, 1.2)) * k;
+    o += `<rect x="${Ac[0] - as}" y="${Ac[1] - as}" width="${2 * as}" height="${2 * as}" fill="var(--panel)" stroke="${c}" stroke-width="0.7"/>`;
+    // patella + facing tick (projected)
+    const pa = g.patella, pd = g.patDir, tl = 5 * k;
+    o += `<line x1="${pa[0]}" y1="${pa[1]}" x2="${pa[0] + pd[0] * tl}" y2="${pa[1] + pd[1] * tl}" stroke="${c}" stroke-width="0.7"/>`;
+    o += `<circle cx="${pa[0]}" cy="${pa[1]}" r="${1.4 * k}" fill="var(--panel)" stroke="${c}" stroke-width="0.7"/>`;
+    // ear
+    const e = m.head.ear[sd]; o += `<circle cx="${e[0]}" cy="${e[1]}" r="${0.9 * k}" fill="${c}"/>`;
+  }
+  // nose / face direction
+  const h = m.head;
+  o += `<line x1="${h.C[0]}" y1="${h.C[1]}" x2="${h.nose[0]}" y2="${h.nose[1]}" stroke="var(--bone)" stroke-width="0.6"/>`;
+  o += `<circle cx="${h.nose[0]}" cy="${h.nose[1]}" r="${1 * k}" fill="var(--bone)"/>`;
+  return o + '</g>';
+}
+
+function drawLabels(m) {
+  const P = m.pelvis, Sh = m.shoulders, k = m.k; let o = '';
+  const txt = (x, y, s, anchor = 'start', cls = '', fill = 'var(--ink)') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="3.5" text-anchor="${anchor}" fill="${fill}" ${cls}>${esc(s)}</text>`;
+  const pelTxt = [];
+  if (P.rotCm) pelTxt.push(`Fwd on the ${P.rotCm > 0 ? 'R' : 'L'} ${r1(Math.abs(P.rotCm))} cm ≈${r0(Math.abs(P.rotDeg))}°`);
+  if (P.oblCm) pelTxt.push(`Up on the ${P.oblCm > 0 ? 'R' : 'L'} ${r1(Math.abs(P.oblCm))} cm ≈${r0(Math.abs(P.oblDeg))}°`);
+  if (P.tiltGrade) pelTxt.push(`${P.tiltDir === 'A' ? 'Anterior' : 'Posterior'} tilt ${'+'.repeat(P.tiltGrade)}`);
+  o += txt(70, P.asis.L[1] - 2, 'Pelvis', 'start', 'font-weight="700"');
+  (pelTxt.length ? pelTxt : ['Neutral']).forEach((t, i) => o += txt(70, P.asis.L[1] + 2.4 + i * 4.2, t));
+  const shTxt = [];
+  if (Sh.rotCm) shTxt.push(`Fwd on the ${Sh.rotCm > 0 ? 'R' : 'L'} ${r1(Math.abs(Sh.rotCm))} cm ≈${r0(Math.abs(Sh.rotDeg))}°`);
+  if (Sh.oblCm) shTxt.push(`Up on the ${Sh.oblCm > 0 ? 'R' : 'L'} ${r1(Math.abs(Sh.oblCm))} cm ≈${r0(Math.abs(Sh.oblDeg))}°`);
+  o += txt(70, Sh.C7[1] - 8, 'Shoulders', 'start', 'font-weight="700"');
+  (shTxt.length ? shTxt : ['Neutral']).forEach((t, i) => o += txt(70, Sh.C7[1] - 3.6 + i * 4.2, t));
+  if (m.trunk.type !== 'none' && m.trunk.mag > 0) {
+    o += txt(70, Sh.C7[1] + 22, 'Trunk', 'start', 'font-weight="700"');
+    o += txt(70, Sh.C7[1] + 26.4, `${m.trunk.type}-shape, convex to the ${m.trunk.convex > 0 ? 'L' : 'R'}`);
+    o += txt(70, Sh.C7[1] + 30.6, `~${r0(m.trunk.mag)}° visual estimate`);
+  }
+  // knee heights
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd], s = SIDE[sd];
+    if (g.popliteal > 0.5) o += txt(g.knee3[0] + s * 8 * k, g.knee3[1] + 1, `↑${r0(g.popliteal)} cm`, s < 0 ? 'end' : 'start', '', sd === 'R' ? 'var(--right)' : 'var(--left)');
+  }
+  if (m.windswept) o += txt(0, 214, `Legs windswept to the ${m.windswept} (as they appear on the surface)`, 'middle', 'font-weight="700"', 'var(--amber)');
+  return o;
+}
+
+function viewOpts() { return { skel: $('tSkel').checked, ghost: $('tGhost').checked, shade: $('tShade').checked, labels: $('tLabels').checked }; }
+function solveActive(opts) { return state.mode === 'sitting' ? solveSitting(merged(state), opts) : solve(merged(state), { ...opts, mode: 'lying' }); }
+function ghostModel() {
+  const ns = defaultState(); ns.mode = state.mode; ns.body = JSON.parse(JSON.stringify(state.body));
+  ns[state.mode].arms = JSON.parse(JSON.stringify(state[state.mode].arms));
+  return state.mode === 'sitting' ? solveSitting(merged(ns), { noRom: true }) : solve(merged(ns), { noRom: true, mode: 'lying' });
+}
+const ALL_VIEWS = ['view', 'sideL', 'sideR', 'seatFront', 'seatSideL', 'seatSideR'];
+function drawScene() {
+  const opt = viewOpts();
+  const m = solveActive();
+  const gm = opt.ghost ? ghostModel() : null;
+  ALL_VIEWS.forEach(id => $(id).style.display = 'none');
+  if (state.mode === 'sitting') {
+    const v = currentView;
+    $('legendTop').style.display = 'none'; $('legendSide').style.display = 'none'; $('legendSeat').style.display = '';
+    $('viewtitle').textContent = { front: 'Sitting posture – front view', sideL: 'Sitting posture – side view from the L', sideR: 'Sitting posture – side view from the R' }[v] || 'Sitting posture';
+    if (v === 'front') { $('seatFront').style.display = ''; $('seatFront').innerHTML = drawSeated(m, 'front', opt, gm); }
+    else if (v === 'sideR') { $('seatSideR').style.display = ''; $('seatSideR').innerHTML = drawSeated(m, 'sideR', opt, gm); }
+    else { $('seatSideL').style.display = ''; $('seatSideL').innerHTML = drawSeated(m, 'sideL', opt, gm); }
+    return m;
+  }
+  const mode = currentView;
+  $('view').style.display = mode === 'top' ? '' : 'none';
+  $('sideL').style.display = (mode === 'L' || mode === 'both') ? '' : 'none';
+  $('sideR').style.display = (mode === 'R' || mode === 'both') ? '' : 'none';
+  $('legendTop').style.display = mode === 'top' ? '' : 'none';
+  $('legendSide').style.display = mode === 'top' ? 'none' : '';
+  $('legendSeat').style.display = 'none';
+  $('viewtitle').textContent = { top: 'Lying posture – view from above', L: 'Lying posture – side view from the L', R: 'Lying posture – side view from the R', both: 'Lying posture – side views' }[mode];
+  if (mode !== 'top') { if (mode !== 'R') $('sideL').innerHTML = drawSide(m, 'L', opt, gm); if (mode !== 'L') $('sideR').innerHTML = drawSide(m, 'R', opt, gm); return m; }
+  let o = '';
+  // surface
+  o += `<rect x="-60" y="0" width="120" height="218" rx="3" fill="var(--bed)"/>`;
+  for (let y = 10; y < 218; y += 10) o += `<line x1="-60" x2="60" y1="${y}" y2="${y}" stroke="var(--grid)" stroke-width="0.2"/>`;
+  for (let x = -50; x <= 50; x += 10) o += `<line y1="0" y2="218" x1="${x}" x2="${x}" stroke="var(--grid)" stroke-width="${x === 0 ? 0.45 : 0.2}" ${x === 0 ? 'stroke-dasharray="2 1.5"' : ''}/>`;
+  // side rails (service user's R on the viewer's left)
+  o += `<rect x="-66" y="0" width="5" height="218" rx="1.5" fill="var(--right)"/><rect x="61" y="0" width="5" height="218" rx="1.5" fill="var(--left)"/>`;
+  o += `<text transform="translate(-62.4,109) rotate(-90)" font-size="3.2" fill="#fff" text-anchor="middle" font-weight="700">Service user's RIGHT</text>`;
+  o += `<text transform="translate(62.6,109) rotate(90)" font-size="3.2" fill="#fff" text-anchor="middle" font-weight="700">Service user's LEFT</text>`;
+  o += `<text x="-100" y="3" font-size="3.2" fill="var(--muted)">Head ↑</text><text x="-100" y="216" font-size="3.2" fill="var(--muted)">Feet ↓</text>`;
+  // scale bar
+  o += `<g transform="translate(-100,200)"><line x1="0" x2="10" y1="0" y2="0" stroke="var(--ink)" stroke-width="0.6"/><line x1="0" x2="0" y1="-1" y2="1" stroke="var(--ink)" stroke-width="0.5"/><line x1="10" x2="10" y1="-1" y2="1" stroke="var(--ink)" stroke-width="0.5"/><text x="5" y="-2" font-size="2.8" text-anchor="middle" fill="var(--muted)">10 cm</text></g>`;
+  o += drawBody(m, opt, 'p');
+  if (gm) o += drawGhost(gm);
+  if (opt.skel) o += drawSkeleton(m, opt);
+  if (opt.labels) o += drawLabels(m);
+  o += drawSupports();
+  $('view').innerHTML = o;
+  return m;
+}
+
+
+// ---------- side views ----------
+// From the L: viewer stands on the service user's left; head on the RIGHT of the screen (as on the sheet).
+// From the R: mirror image; head on the LEFT.
+function sideProj(view) { return view === 'L' ? p => [212 - p[1], -p[2]] : p => [p[1] - 2, -p[2]]; }
+function sideDepth(view, p) { return view === 'L' ? p[0] : -p[0]; } // larger = nearer the viewer
+function sideParts(m, view) {
+  const P = sideProj(view), k = m.k, parts = [];
+  const D = p => sideDepth(view, p);
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd], a = m.arms[sd];
+    const dl = (D(g.hip) + D(g.knee3) + D(g.ankle3)) / 3;
+    parts.push({ side: sd, depth: dl, pts: capsule(P(g.hip), P(g.knee3), 8 * k, 5.4 * k) });
+    parts.push({ side: sd, depth: dl + 0.01, pts: capsule(P(g.knee3), P(g.ankle3), 5.1 * k, 3.1 * k) });
+    parts.push({ side: sd, depth: dl + 0.02, pts: hull(g.footPts.map(P)) });
+    const da = (D(a.sho) + D(a.elb) + D(a.wri)) / 3 + (a.across ? 6 : 0);
+    parts.push({ side: sd, depth: da, pts: capsule(P(a.sho), P(a.elb), 4.6 * k, 3.6 * k) });
+    parts.push({ side: sd, depth: da + 0.01, pts: capsule(P(a.elb), P(a.wri), 3.4 * k, 2.4 * k) });
+    parts.push({ side: sd, depth: da + 0.02, pts: capsule(P(a.wri), P(a.hand), 2.9 * k, 2.6 * k) });
+  }
+  const T = m.torsoSide, pv = T.pelvis;
+  const tors = [...T.ant.slice().reverse(), pv.pubis, pv.groin, pv.buttock, ...T.post.filter((_, i) => i > 0)].map(P);
+  parts.push({ side: null, depth: 0, d: smoothPath(tors), torso: true });
+  parts.push({ side: null, depth: 0.5, pts: capsule(P(m.shoulders.C7), P(m.head.neckTop), 5.2 * k, 4.6 * k) });
+  parts.push({ side: null, depth: 0.6, pts: hull(m.head.pts.map(P)) });
+  return parts.sort((a, b) => a.depth - b.depth);
+}
+function drawSide(m, view, opt, gm) {
+  const P = sideProj(view), k = m.k, near = view, far = view === 'L' ? 'R' : 'L';
+  const col = sd => sd === 'R' ? 'var(--right)' : 'var(--left)';
+  const fillFor = p => !opt.shade ? shade(0, false) : p.side === near ? shade(26, true) : p.side === far ? shade(4, true) : shade(15, true);
+  let o = '';
+  const allZ = [m.head.pts, m.legs.R.footPts, m.legs.L.footPts, [m.legs.R.knee3, m.legs.L.knee3, m.arms.R.elb, m.arms.L.elb, m.arms.R.hand, m.arms.L.hand], m.torsoSide.ant].flat().map(p => p[2]);
+  const zTop = Math.max(32, Math.ceil((Math.max(...allZ) + 6) / 10) * 10);
+  const top = -(zTop + 22);
+  const svg = $(view === 'L' ? 'sideL' : 'sideR'); svg.setAttribute('viewBox', `-14 ${top} 240 ${14 - top}`);
+  o += `<clipPath id="above${view}"><rect x="-20" y="${top}" width="260" height="${-top + 0.3}"/></clipPath>`;
+  o += `<rect x="-2" y="0" width="216" height="7" fill="var(--bed)"/><line x1="-2" x2="214" y1="0" y2="0" stroke="var(--stroke)" stroke-width="0.5"/>`;
+  for (let y = 10; y <= zTop; y += 10) o += `<line x1="-2" x2="214" y1="${-y}" y2="${-y}" stroke="var(--grid)" stroke-width="0.2"/><text x="${view === 'L' ? -3 : 215}" y="${-y + 1}" font-size="2.6" fill="var(--muted)" text-anchor="${view === 'L' ? 'end' : 'start'}">${y}</text>`;
+  o += `<text x="${view === 'L' ? -3 : 215}" y="4.5" font-size="2.6" fill="var(--muted)" text-anchor="${view === 'L' ? 'end' : 'start'}">cm</text>`;
+  o += `<rect x="-2" y="${top + 1}" width="216" height="6" rx="1.5" fill="${col(near)}"/><text x="106" y="${top + 5.2}" font-size="3.4" fill="#fff" text-anchor="middle" font-weight="700">Viewed from the service user's ${near === 'R' ? 'RIGHT' : 'LEFT'} side · head to the ${view === 'L' ? 'right' : 'left'}</text>`;
+  o += `<text x="${view === 'L' ? 211 : 1}" y="5.2" font-size="3" fill="var(--muted)" text-anchor="${view === 'L' ? 'end' : 'start'}">Head end</text><text x="${view === 'L' ? 1 : 211}" y="5.2" font-size="3" fill="var(--muted)" text-anchor="${view === 'L' ? 'start' : 'end'}">Foot end</text>`;
+  if (m.trunk.type !== 'none' && m.trunk.mag > 0) {
+    const convexSide = m.trunk.convex > 0 ? 'L' : 'R';
+    o += `<text x="${view === 'L' ? 6 : 206}" y="${top + 12}" font-size="3.2" text-anchor="${view === 'L' ? 'start' : 'end'}" fill="var(--amber)" font-weight="700">${near === convexSide ? 'Side of convexity (rib hump side)' : 'Side of concavity'}</text>`;
+  }
+  // body (clipped at the surface)
+  o += `<g clip-path="url(#above${view})">`;
+  for (const p of sideParts(m, view)) {
+    const f = fillFor(p), sw = p.side === far ? 0.4 : 0.55;
+    if (p.torso) o += `<path d="${p.d}" fill="${f}" stroke="var(--stroke)" stroke-width="0.55" stroke-linejoin="round"/>`;
+    else o += `<polygon points="${pstr(p.pts)}" fill="${f}" ${p.side === near ? 'fill-opacity="0.88"' : ''} stroke="var(--stroke)" stroke-width="${sw}" stroke-linejoin="round"/>`;
+  }
+  if (gm) for (const p of sideParts(gm, view)) {
+    if (p.torso) o += `<path d="${p.d}" fill="none" stroke="var(--ghost)" stroke-width="0.4" stroke-dasharray="1.6 1.2"/>`;
+    else if (p.side !== far) o += `<polygon points="${pstr(p.pts)}" fill="none" stroke="var(--ghost)" stroke-width="0.4" stroke-dasharray="1.6 1.2"/>`;
+  }
+  o += '</g>';
+  const pl = pts => pstr(pts.map(P));
+  if (opt.skel) {
+    o += '<g stroke-linecap="round" stroke-linejoin="round">';
+    o += `<polyline points="${pl(m.spine.map(s => s.p))}" fill="none" stroke="var(--bone)" stroke-width="0.9"/>`;
+    m.spine.forEach((s, i) => { if (i % 2 === 0) { const q = P(s.p); o += `<circle cx="${q[0].toFixed(2)}" cy="${q[1].toFixed(2)}" r="${(0.7 * k).toFixed(2)}" fill="var(--panel)" stroke="var(--bone)" stroke-width="0.35"/>`; } });
+    o += `<polyline points="${pl([m.shoulders.C7, m.head.neckTop])}" fill="none" stroke="var(--bone)" stroke-width="0.8"/>`;
+    for (const sd of [far, near]) {
+      const g = m.legs[sd], a = m.arms[sd], c = col(sd), dash = sd === far ? 'stroke-dasharray="1.4 1"' : '';
+      o += `<polyline points="${pl([g.hip, g.knee3, g.ankle3, g.toe])}" fill="none" stroke="${c}" stroke-width="0.8" ${dash}/>`;
+      o += `<polyline points="${pl([a.sho, a.elb, a.wri, a.hand])}" fill="none" stroke="${c}" stroke-width="0.6" ${dash}/>`;
+      const A = P(m.pelvis.asis[sd]), s1 = 1.5 * k, fillM = sd === near ? c : 'var(--panel)';
+      o += `<polygon points="${pstr([[A[0], A[1] - s1 * 1.1], [A[0] + s1, A[1] + s1 * 0.8], [A[0] - s1, A[1] + s1 * 0.8]])}" fill="${fillM}" stroke="${c}" stroke-width="0.6"/>`;
+      const Ac = P(m.shoulders.acromion[sd]), s2 = 1.2 * k;
+      o += `<rect x="${Ac[0] - s2}" y="${Ac[1] - s2}" width="${2 * s2}" height="${2 * s2}" fill="${fillM}" stroke="${c}" stroke-width="0.6"/>`;
+      const pa = P(g.patella); o += `<circle cx="${pa[0]}" cy="${pa[1]}" r="${1.3 * k}" fill="${fillM}" stroke="${c}" stroke-width="0.6"/>`;
+      const hp = P(g.hip); o += `<circle cx="${hp[0]}" cy="${hp[1]}" r="${1 * k}" fill="${c}"/>`;
+    }
+    const e = P(m.head.ear[near]); o += `<circle cx="${e[0]}" cy="${e[1]}" r="${1 * k}" fill="${col(near)}"/>`;
+    const n = P(m.head.nose), hc = P(m.head.C);
+    o += `<line x1="${hc[0]}" y1="${hc[1]}" x2="${n[0]}" y2="${n[1]}" stroke="var(--bone)" stroke-width="0.6"/><circle cx="${n[0]}" cy="${n[1]}" r="${1 * k}" fill="var(--bone)"/>`;
+    o += '</g>';
+  }
+  if (opt.labels) {
+    const t = (x, y, s, anchor = 'middle', fill = 'var(--ink)', w = '') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="3.2" text-anchor="${anchor}" fill="${fill}" ${w}>${esc(s)}</text>`;
+    // ASIS heights
+    const AR = m.pelvis.asis.R, AL = m.pelvis.asis.L, ax = P(AR)[0], ay = Math.min(P(AR)[1], P(AL)[1]);
+    const rowY = -(zTop + 2);
+    o += `<line x1="${ax}" x2="${ax}" y1="${rowY + 1.5}" y2="${ay - 2.5}" stroke="var(--muted)" stroke-width="0.25" stroke-dasharray="0.8 0.8"/>`;
+    o += t(ax, rowY - 4, 'ASIS height', 'middle', 'var(--muted)');
+    o += t(ax, rowY, `R ${r1(AR[2])} · L ${r1(AL[2])} cm`, 'middle', 'var(--ink)', 'font-weight="700"');
+    const SR = m.shoulders.acromion.R, SL = m.shoulders.acromion.L, sx = P(SR)[0], sy = Math.min(P(SR)[1], P(SL)[1]);
+    o += `<line x1="${sx}" x2="${sx}" y1="${rowY + 1.5}" y2="${sy - 2.5}" stroke="var(--muted)" stroke-width="0.25" stroke-dasharray="0.8 0.8"/>`;
+    o += t(sx, rowY - 4, 'Acromion height', 'middle', 'var(--muted)');
+    o += t(sx, rowY, `R ${r1(SR[2])} · L ${r1(SL[2])} cm`, 'middle', 'var(--ink)', 'font-weight="700"');
+    for (const sd of ['R', 'L']) {
+      const g = m.legs[sd];
+      if (g.popliteal > 0.5) { const q = P(g.knee3); o += t(q[0] + (sd === near ? 7 : -7) * (view === 'L' ? -1 : 1), q[1] - 5, `${sd} knee ↑${r0(g.popliteal)}`, sd === near ? (view === 'L' ? 'end' : 'start') : (view === 'L' ? 'start' : 'end'), col(sd), 'font-weight="700"'); }
+    }
+    const sg = m.sagittal;
+    if (sg.lumbarGap > 0.5) { const q = P(m.spine[6].p); o += t(q[0], 11.5, `Lumbar gap ≈${r1(sg.lumbarGap)} cm`, 'middle', 'var(--amber)', 'font-weight="700"'); }
+    const occ = m.head.occiput[2];
+    if (occ > 1) { const q = P(m.head.C); o += t(q[0], 11.5, `Back of head ≈${r1(occ)} cm up`, 'middle', 'var(--amber)', 'font-weight="700"'); }
+  }
+  o += drawSupportsSide(view);
+  return o;
+}
+
+// ---------- seated views (front + side, no chair) ----------
+function seatProj(view) {
+  if (view === 'front') return { P: p => [p[0], -p[2]], depth: p => p[1] };            // look from front: X right, up=up, nearer=+Y
+  if (view === 'sideL') return { P: p => [p[1], -p[2]], depth: p => p[0] };            // from the L: forward to the right
+  return { P: p => [-p[1], -p[2]], depth: p => -p[0] };                                 // from the R: forward to the left
+}
+function seatedTorso(m, view) {
+  const k = m.k, S = m.spine, P = seatProj(view).P;
+  const halfW = t => (10 + 6 * t) * k * (m.shW / 38 * t + m.asisW / 24 * (1 - t)); // coronal half-width
+  const halfD = t => (9 + 3 * Math.sin(Math.PI * t)) * k;                             // sagittal half-depth
+  const L = [], R = [];
+  for (let i = 1; i < S.length - 1; i++) {
+    const s = S[i];
+    if (view === 'front') { const w = halfW(s.t); L.push([s.p[0] + w, s.p[1], s.p[2]]); R.push([s.p[0] - w, s.p[1], s.p[2]]); }
+    else { const d = halfD(s.t); L.push([s.p[0], s.p[1] + d, s.p[2]]); R.push([s.p[0], s.p[1] - d, s.p[2]]); } // front(+Y) / back(−Y)
+  }
+  // close around pelvis and shoulders
+  const pv = m.pelvis, sh = m.shoulders;
+  const seatFront = [], seatBack = [];
+  return { path: smoothPath([...L.map(P), ...R.reverse().map(P)]) };
+}
+function seatedParts(m, view) {
+  const P = seatProj(view).P, D = seatProj(view).depth, k = m.k, parts = [];
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd], a = m.arms[sd];
+    const dl = (D(g.hip) + D(g.knee3) + D(g.ankle3)) / 3;
+    parts.push({ side: sd, depth: dl, pts: capsule(P(g.hip), P(g.knee3), 8 * k, 5.4 * k) });
+    parts.push({ side: sd, depth: dl + 0.01, pts: capsule(P(g.knee3), P(g.ankle3), 5.1 * k, 3.1 * k) });
+    parts.push({ side: sd, depth: dl + 0.02, pts: hull(g.footPts.map(P)) });
+    const da = (D(a.sho) + D(a.elb) + D(a.wri)) / 3;
+    parts.push({ side: sd, depth: da, pts: capsule(P(a.sho), P(a.elb), 4.6 * k, 3.6 * k) });
+    parts.push({ side: sd, depth: da + 0.01, pts: capsule(P(a.elb), P(a.wri), 3.4 * k, 2.4 * k) });
+    parts.push({ side: sd, depth: da + 0.02, pts: capsule(P(a.wri), P(a.hand), 2.9 * k, 2.6 * k) });
+  }
+  parts.push({ side: null, depth: 0, torso: true, d: seatedTorso(m, view).path });
+  parts.push({ side: null, depth: 0.5, pts: capsule(P(m.shoulders.C7), P(m.head.neckTop), 5.2 * k, 4.6 * k) });
+  parts.push({ side: null, depth: 0.6, pts: hull(m.head.pts.map(P)) });
+  return parts.sort((a, b) => a.depth - b.depth);
+}
+function drawSeated(m, view, opt, gm) {
+  const { P, depth } = seatProj(view), k = m.k;
+  const col = sd => sd === 'R' ? 'var(--right)' : 'var(--left)';
+  const near = view === 'sideR' ? 'R' : 'L', far = near === 'R' ? 'L' : 'R';
+  // bounds
+  const allP = [m.head.pts, m.legs.R.footPts, m.legs.L.footPts, [m.legs.R.knee3, m.legs.L.knee3, m.arms.R.hand, m.arms.L.hand], m.spine.map(s => s.p)].flat().map(P);
+  const xs = allP.map(p => p[0]), ys = allP.map(p => p[1]);
+  const minX = Math.min(...xs) - 10, maxX = Math.max(...xs) + 10, minY = Math.min(...ys) - 14, maxY = Math.max(...ys) + 22;
+  let vbX = minX, vbW = maxX - minX; const vbY = minY, vbH = maxY - minY;
+  // keep a sensible aspect (height ≤ ~1.6× width) so the narrow front view isn't rendered huge; widen symmetrically
+  const MAXR = 1.6;
+  if (vbH / vbW > MAXR) { const newW = vbH / MAXR; vbX -= (newW - vbW) / 2; vbW = newW; }
+  const svg = $(view === 'front' ? 'seatFront' : view === 'sideR' ? 'seatSideR' : 'seatSideL');
+  svg.setAttribute('viewBox', `${vbX.toFixed(1)} ${vbY.toFixed(1)} ${vbW.toFixed(1)} ${vbH.toFixed(1)}`);
+  const seatY = 0; // seat top at world Z=0 → screen y 0
+  const left = vbX, right = vbX + vbW;
+  let o = '';
+  // seat reference only (no floor — most service users are in a wheelchair with feet on a footplate or floating)
+  o += `<line x1="${(view === 'front' ? -18 : left + 4)}" x2="${(view === 'front' ? 18 : left + 26)}" y1="${seatY}" y2="${seatY}" stroke="var(--muted)" stroke-width="0.7" stroke-dasharray="2 1.5"/>`;
+  o += `<text x="${(view === 'front' ? -18 : left + 4)}" y="${seatY - 1.2}" font-size="2.4" fill="var(--muted)">Seat level</text>`;
+  // title strip
+  const label = view === 'front' ? "Front view (SU's R on your left)" : `Side view from the ${near} (no chair)`;
+  o += `<rect x="${left}" y="${minY}" width="${vbW}" height="5.5" fill="${view === 'front' ? 'var(--ink)' : col(near)}"/><text x="${(left + right) / 2}" y="${minY + 4}" font-size="2.7" fill="#fff" text-anchor="middle" font-weight="700">${esc(label)}</text>`;
+  if (view === 'front') {
+    o += `<text x="${left + 1}" y="${minY + 10}" font-size="2.8" fill="var(--right)" font-weight="700">R</text><text x="${right - 1}" y="${minY + 10}" font-size="2.8" fill="var(--left)" font-weight="700" text-anchor="end">L</text>`;
+  } else {
+    o += `<text x="${view === 'sideL' ? right - 1 : left + 1}" y="${minY + 10}" font-size="2.6" fill="var(--muted)" text-anchor="${view === 'sideL' ? 'end' : 'start'}">Front →</text>`;
+    if (m.trunk.type !== 'none' && m.trunk.mag > 0) { const cx = m.trunk.convex > 0 ? 'L' : 'R'; o += `<text x="${(left + right) / 2}" y="${minY + 10}" font-size="2.5" fill="var(--amber)" text-anchor="middle" font-weight="700">${near === cx ? 'Side of convexity (hump)' : 'Side of concavity'}</text>`; }
+  }
+  // body
+  const fillFor = p => !opt.shade ? shade(0, false) : p.side === near ? shade(26, true) : p.side === far ? shade(6, true) : shade(15, true);
+  for (const p of seatedParts(m, view)) {
+    if (p.torso) o += `<path d="${p.d}" fill="${fillFor(p)}" stroke="var(--stroke)" stroke-width="0.55" stroke-linejoin="round"/>`;
+    else o += `<polygon points="${pstr(p.pts)}" fill="${fillFor(p)}" ${p.side === near ? 'fill-opacity="0.9"' : ''} stroke="var(--stroke)" stroke-width="${p.side === far ? 0.4 : 0.55}" stroke-linejoin="round"/>`;
+  }
+  if (gm) for (const p of seatedParts(gm, view)) {
+    if (p.torso) o += `<path d="${p.d}" fill="none" stroke="var(--ghost)" stroke-width="0.4" stroke-dasharray="1.6 1.2"/>`;
+    else if (p.side !== far) o += `<polygon points="${pstr(p.pts)}" fill="none" stroke="var(--ghost)" stroke-width="0.4" stroke-dasharray="1.6 1.2"/>`;
+  }
+  const pl = pts => pstr(pts.map(P));
+  if (opt.skel) {
+    o += '<g stroke-linecap="round" stroke-linejoin="round">';
+    o += `<polyline points="${pl(m.spine.map(s => s.p))}" fill="none" stroke="var(--bone)" stroke-width="0.9"/>`;
+    o += `<polyline points="${pl([m.shoulders.C7, m.head.neckTop])}" fill="none" stroke="var(--bone)" stroke-width="0.8"/>`;
+    o += `<line x1="${P(m.pelvis.asis.R)[0]}" y1="${P(m.pelvis.asis.R)[1]}" x2="${P(m.pelvis.asis.L)[0]}" y2="${P(m.pelvis.asis.L)[1]}" stroke="var(--bone)" stroke-width="0.9"/>`;
+    o += `<line x1="${P(m.shoulders.acromion.R)[0]}" y1="${P(m.shoulders.acromion.R)[1]}" x2="${P(m.shoulders.acromion.L)[0]}" y2="${P(m.shoulders.acromion.L)[1]}" stroke="var(--bone)" stroke-width="0.9"/>`;
+    const order = view === 'front' ? ['R', 'L'] : [far, near];
+    for (const sd of order) {
+      const g = m.legs[sd], a = m.arms[sd], c = col(sd), dash = (view !== 'front' && sd === far) ? 'stroke-dasharray="1.4 1"' : '';
+      o += `<polyline points="${pl([g.hip, g.knee3, g.ankle3])}" fill="none" stroke="${c}" stroke-width="0.8" ${dash}/>`;
+      o += `<polyline points="${pl([g.ankle3, g.soleUnderAnkle])}" fill="none" stroke="${c}" stroke-width="0.8" ${dash}/>`;
+      o += `<polyline points="${pl([g.heel, g.toe])}" fill="none" stroke="${c}" stroke-width="0.8" ${dash}/>`;
+      o += `<polyline points="${pl([a.sho, a.elb, a.wri, a.hand])}" fill="none" stroke="${c}" stroke-width="0.6" ${dash}/>`;
+      const A = P(m.pelvis.asis[sd]), s1 = 1.4 * k;
+      o += `<polygon points="${pstr([[A[0], A[1] - s1 * 1.1], [A[0] + s1, A[1] + s1 * 0.8], [A[0] - s1, A[1] + s1 * 0.8]])}" fill="var(--panel)" stroke="${c}" stroke-width="0.6"/>`;
+      const Ac = P(m.shoulders.acromion[sd]), s2 = 1.2 * k;
+      o += `<rect x="${Ac[0] - s2}" y="${Ac[1] - s2}" width="${2 * s2}" height="${2 * s2}" fill="var(--panel)" stroke="${c}" stroke-width="0.6"/>`;
+      const hp = P(g.hip); o += `<circle cx="${hp[0]}" cy="${hp[1]}" r="${1 * k}" fill="${c}"/>`;
+      const pa = P(g.patella); o += `<circle cx="${pa[0]}" cy="${pa[1]}" r="${1.2 * k}" fill="var(--panel)" stroke="${c}" stroke-width="0.6"/>`;
+    }
+    const nse = P(m.head.nose), hc = P(m.head.C);
+    o += `<line x1="${hc[0]}" y1="${hc[1]}" x2="${nse[0]}" y2="${nse[1]}" stroke="var(--bone)" stroke-width="0.6"/><circle cx="${nse[0]}" cy="${nse[1]}" r="${1 * k}" fill="var(--bone)"/>`;
+    o += '</g>';
+  }
+  if (opt.labels) {
+    const t = (x, y, s, anchor = 'middle', fill = 'var(--ink)', w = '') => `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="2.4" text-anchor="${anchor}" fill="${fill}" ${w}>${esc(s)}</text>`;
+    if (view === 'front') {
+      const AR = m.pelvis.asis.R, AL = m.pelvis.asis.L;
+      if (Math.abs(m.pelvis.asisUp) >= 0.4) { const hx = (P(AR)[0] + P(AL)[0]) / 2; o += t(hx, Math.min(P(AR)[1], P(AL)[1]) - 2.2, `Pelvis: up on ${m.pelvis.asisUp > 0 ? 'R' : 'L'} ${r1(Math.abs(m.pelvis.oblCm))}cm`, 'middle', 'var(--amber)', 'font-weight="700"'); }
+      const SR = m.shoulders.acromion.R, SL = m.shoulders.acromion.L;
+      if (Math.abs(m.shoulders.acromionUp) >= 0.4) { const sx = (P(SR)[0] + P(SL)[0]) / 2; o += t(sx, Math.min(P(SR)[1], P(SL)[1]) - 2.2, `Shoulders: up on ${m.shoulders.acromionUp > 0 ? 'R' : 'L'}`, 'middle', 'var(--amber)', 'font-weight="700"'); }
+      if (m.windswept) o += t((left + right) / 2, vbY + vbH - 5, `Windswept to the ${m.windswept}`, 'middle', 'var(--amber)', 'font-weight="700"');
+    } else {
+      if (m.pelvis.tiltGrade) { const a = P(m.pelvis.asis[near]); o += t(a[0] + (view === 'sideL' ? 3 : -3), a[1] - 2.5, `${m.pelvis.tiltDir === 'A' ? 'Ant.' : 'Post.'} tilt (${'+'.repeat(m.pelvis.tiltGrade)})`, view === 'sideL' ? 'start' : 'end', 'var(--amber)', 'font-weight="700"'); }
+      // hip / knee / ankle flexion labels so 90/90/90 (or departures from it) are explicit
+      const g = m.legs[near], anc = view === 'sideL' ? 'end' : 'start', off = view === 'sideL' ? -2.5 : 2.5;
+      const hp = P(g.hip), kp = P(g.knee3), ap = P(g.ankle3);
+      o += t(hp[0] + off, hp[1] + 3.5, `hip ${r0(g.hipFlex)}°`, anc, 'var(--muted)');
+      o += t(kp[0] - off, kp[1] - 2, `knee ${r0(g.knee)}°`, view === 'sideL' ? 'start' : 'end', 'var(--muted)');
+      o += t(ap[0] + (view === 'sideL' ? 4 : -4), ap[1] + 2, `ankle ${Math.abs(g.ankle) < 1 ? '90°' : g.ankle > 0 ? 'DF ' + r0(g.ankle) + '°' : 'PF ' + r0(-g.ankle) + '°'}`, view === 'sideL' ? 'start' : 'end', 'var(--muted)');
+      const sg = m.sagittal, sl = [];
+      if (sg.gKyph > 0) sl.push('increased kyphosis'); if (sg.gLord) sl.push(sg.gLord > 0 ? 'increased lordosis' : 'flattened lordosis');
+      if (sl.length) { o += t(left + 1.5, minY + 15, sl.join(', '), 'start', 'var(--muted)'); }
+    }
+  }
+  return o;
+}
+
+// ---------- supports (Phase 2) ----------
+// Coordinates are in the lying top view's centimetre space: x across the bed (SU left +),
+// y head→feet (0 at head, ~210 at feet). 1 unit = 1 cm.
+const SUPPORT_TYPES = {
+  roll: { name: 'Towel / pillow roll', len: 30, wid: 8, rot: 0, x: 0, y: 150 },
+  troll: { name: 'T-roll', len: 40, wid: 10, rot: 0, x: 0, y: 150 },
+  wedge: { name: 'Wedge', len: 30, wid: 20, rot: 0, x: -26, y: 95 },
+  lateral: { name: 'Lateral trunk support', len: 18, wid: 8, rot: 90, x: -34, y: 78 },
+  pelvic: { name: 'Pelvic support', len: 12, wid: 8, rot: 90, x: -32, y: 112 },
+  kneeBlock: { name: 'Knee block / abduction wedge', len: 16, wid: 16, rot: 0, x: 0, y: 150 },
+  footSupport: { name: 'Foot support', len: 26, wid: 10, rot: 0, x: 0, y: 205 },
+  headSupport: { name: 'Head support', len: 24, wid: 14, rot: 0, x: 0, y: 12 },
+};
+let supSeq = 1;
+function addSupport(type) {
+  const t = SUPPORT_TYPES[type]; if (!t) return;
+  const list = state[state.mode].supports;
+  const n = list.filter(s => s.type === type).length;
+  const jitter = list.length ? (list.length % 4) * 4 - 6 : 0;
+  list.push({ id: 'sup' + (supSeq++), type, x: clamp(t.x + jitter, -58, 58), y: clamp(t.y + jitter, 2, 216), len: t.len, wid: t.wid, rot: t.rot, label: t.name + (n ? ' ' + (n + 1) : '') });
+  selectedSupport = list[list.length - 1].id;
+}
+function supportShape(s) {
+  const L = s.len, W = s.wid, sel = s.id === selectedSupport;
+  const fill = 'var(--support)', stroke = sel ? 'var(--supportSel)' : 'var(--supportLine)', sw = sel ? 1 : 0.6, dash = sel ? 'stroke-dasharray="2.4 1.4"' : '';
+  const rr = (x, y, w, h, r) => `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${r.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`;
+  const poly = pts => `<polygon points="${pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" ${dash}/>`;
+  switch (s.type) {
+    case 'roll': case 'headSupport': return rr(-L / 2, -W / 2, L, W, W / 2);
+    case 'troll': return rr(-L / 2, -W / 2, L, W, W / 2) + rr(-4, W / 2 - 1, 8, Math.max(18, L * 0.7), 3);
+    case 'wedge': return poly([[-L / 2, -W / 2], [L / 2, -W / 6], [L / 2, W / 6], [-L / 2, W / 2]]);
+    case 'kneeBlock': return poly([[0, -W / 2], [L / 2, W / 2], [-L / 2, W / 2]]);
+    default: return rr(-L / 2, -W / 2, L, W, 2.5); // lateral, pelvic, foot support blocks
+  }
+}
+function drawSupports() {
+  const sups = state[state.mode].supports || [];
+  if (!sups.length) return '';
+  let o = '<g id="supportLayer">';
+  for (const s of sups) {
+    o += `<g class="support" data-sup-hit="${s.id}" transform="translate(${s.x},${s.y})">`;
+    o += `<g transform="rotate(${s.rot})">${supportShape(s)}</g>`;
+    o += `<text x="0" y="0" font-size="3.4" text-anchor="middle" dominant-baseline="central" fill="var(--supportLine)" font-weight="700" style="pointer-events:none">${esc(s.label)}</text>`;
+    o += '</g>';
+  }
+  o += '</g>';
+  return o;
+}
+// Approximate height off the surface (cm) for drawing supports in the side views.
+const SUPPORT_HEIGHT = { roll: 9, troll: 10, wedge: 16, lateral: 15, pelvic: 12, kneeBlock: 15, footSupport: 16, headSupport: 8 };
+function drawSupportsSide(view) {
+  const sups = state[state.mode].supports || [];
+  if (!sups.length) return '';
+  const P = sideProj(view), nearSign = view === 'L' ? 1 : -1;
+  let o = '<g id="supportLayerSide">';
+  for (const s of sups) {
+    const H = SUPPORT_HEIGHT[s.type] || 10, rad = s.rot * Math.PI / 180;
+    const halfY = Math.abs(Math.sin(rad)) * s.len / 2 + Math.abs(Math.cos(rad)) * s.wid / 2; // extent along the body
+    const y0 = s.y - halfY, y1 = s.y + halfY;
+    const near = Math.abs(s.x) < 10 || Math.sign(s.x) === nearSign;
+    const fill = near ? 'var(--support)' : 'none', dash = near ? '' : 'stroke-dasharray="2 1.4"';
+    let pts;
+    if (s.type === 'wedge') pts = [[s.x, y0, 0], [s.x, y1, 0], [s.x, y1, H]];               // wedge rises to one end
+    else pts = [[s.x, y0, 0], [s.x, y1, 0], [s.x, y1, H], [s.x, y0, H]];                      // block footprint × height
+    const scr = pts.map(p => P(p));
+    o += `<polygon points="${scr.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ')}" fill="${fill}" ${near ? 'fill-opacity="0.8"' : ''} stroke="var(--supportLine)" stroke-width="0.6" stroke-linejoin="round" ${dash}/>`;
+    const lc = P([s.x, (y0 + y1) / 2, H + 3.5]);
+    o += `<text x="${lc[0].toFixed(1)}" y="${lc[1].toFixed(1)}" font-size="3" text-anchor="middle" fill="var(--supportLine)" font-weight="700" style="pointer-events:none">${esc(s.label)}${near ? '' : ' (far side)'}</text>`;
+  }
+  o += '</g>';
+  return o;
+}
+function renderSupportList() {
+  const box = $('supList'); if (!box) return;
+  const sups = state[state.mode].supports || [];
+  if (!sups.length) { box.innerHTML = '<p class="help">No supports placed yet. Choose one above and press Add, then drag it into place on the model.</p>'; return; }
+  box.innerHTML = sups.map(s => {
+    const t = SUPPORT_TYPES[s.type], sel = s.id === selectedSupport ? ' selected' : '';
+    return `<div class="supitem${sel}" data-sup-select="${s.id}">
+      <div class="supitem-head"><b>${esc(t.name)}</b><button type="button" class="minibtn danger" data-sup-remove="${s.id}">Remove</button></div>
+      <label class="suprow">Label <input type="text" value="${esc(s.label).replace(/"/g, '&quot;')}" data-sup-id="${s.id}" data-sup-field="label"></label>
+      <label class="suprow">Length <input type="range" min="6" max="60" step="1" value="${s.len}" data-sup-id="${s.id}" data-sup-field="len"><span>${s.len} cm</span></label>
+      <label class="suprow">Width <input type="range" min="4" max="40" step="1" value="${s.wid}" data-sup-id="${s.id}" data-sup-field="wid"><span>${s.wid} cm</span></label>
+      <label class="suprow">Rotation <input type="range" min="0" max="180" step="5" value="${s.rot}" data-sup-id="${s.id}" data-sup-field="rot"><span>${s.rot}°</span></label>
+    </div>`;
+  }).join('');
+}
+
+// ---------- readouts ----------
+const dirWord = (v, pos, neg) => Math.abs(v) < 0.5 ? 'neutral' : `${v > 0 ? pos : neg} ${r0(Math.abs(v))}°`;
+function limitText(l) {
+  const it = l.rom.item, side = l.side ? (l.side === 'R' ? 'R ' : 'L ') : '';
+  const src = l.rom.source === 'no-lying-item' ? `no lying item on the sheet – standard rotation ${it.std} used as a reference`
+    : l.rom.source === 'entered' ? `item ${it.n}: ${l.rom.text}` : `item ${it.n} standard ${it.std}`;
+  return { side, src };
+}
+function renderReadouts(m) {
+  const P = m.pelvis, Sh = m.shoulders;
+  let h = '<h3>Pelvis</h3><table class="ro"><tbody>';
+  h += `<tr><th>Rotation</th><td class="num">${P.rotCm ? `Fwd on the ${P.rotCm > 0 ? 'R' : 'L'} ${r1(Math.abs(P.rotCm))} cm` : 'Neutral'}</td><td class="num">≈${r0(Math.abs(P.rotDeg))}°</td></tr>`;
+  h += `<tr><th>Obliquity</th><td class="num">${P.oblCm ? `Up on the ${P.oblCm > 0 ? 'R' : 'L'} ${r1(Math.abs(P.oblCm))} cm` : 'Neutral'}</td><td class="num">≈${r0(Math.abs(P.oblDeg))}°</td></tr>`;
+  h += `<tr><th>Tilt</th><td class="num" colspan="2">${P.tiltGrade ? (P.tiltDir === 'A' ? 'Anterior ' : 'Posterior ') + '+'.repeat(P.tiltGrade) : 'Neutral'}</td></tr>`;
+  h += `</tbody></table><p class="help">Angle = asin(cm ÷ ASIS width ${r1(m.asisW)} cm).</p>`;
+
+  h += '<h3>Shoulders</h3><table class="ro"><tbody>';
+  h += `<tr><th>Rotation</th><td class="num">${Sh.rotCm ? `Fwd on the ${Sh.rotCm > 0 ? 'R' : 'L'} ${r1(Math.abs(Sh.rotCm))} cm` : 'Neutral'}</td><td class="num">≈${r0(Math.abs(Sh.rotDeg))}°</td></tr>`;
+  h += `<tr><th>Obliquity</th><td class="num">${Sh.oblCm ? `Up on the ${Sh.oblCm > 0 ? 'R' : 'L'} ${r1(Math.abs(Sh.oblCm))} cm` : 'Neutral'}</td><td class="num">≈${r0(Math.abs(Sh.oblDeg))}°</td></tr>`;
+  const twist = Sh.rotDeg - P.rotDeg;
+  h += `<tr><th>Shoulders vs pelvis</th><td class="num" colspan="2">${Math.abs(twist) < 1 ? 'No relative rotation' : `Shoulders ≈${r0(Math.abs(twist))}° further fwd on the ${twist > 0 ? 'R' : 'L'} than the pelvis`}</td></tr>`;
+  h += '</tbody></table>';
+
+  const seated = m.seated;
+  h += `<h3>Heights above the ${seated ? 'seat' : 'surface'} (model)</h3><table class="ro"><thead><tr><th></th><th>R</th><th>L</th></tr></thead><tbody>`;
+  const hrow = (lab, a, b) => `<tr><th>${lab}</th><td class="num">${r1(a)} cm</td><td class="num">${r1(b)} cm</td></tr>`;
+  h += hrow('ASIS', P.asis.R[2], P.asis.L[2]) + hrow('Acromion', Sh.acromion.R[2], Sh.acromion.L[2]);
+  if (!seated) { h += hrow('Under knee', Math.max(0, m.legs.R.popliteal), Math.max(0, m.legs.L.popliteal)); h += `<tr><th>Lumbar spine gap</th><td class="num" colspan="2">${r1(m.sagittal.lumbarGap)} cm</td></tr><tr><th>Back of head</th><td class="num" colspan="2">${r1(Math.max(0, m.head.occiput[2]))} cm</td></tr>`; }
+  h += '</tbody></table><p class="help">Indicative only – useful for comparing sides and, later, for sizing supports.</p>';
+  h += `<h3>Hips: relative to pelvis vs on the surface</h3>
+  <table class="ro"><thead><tr><th></th><th>Measured (rel. pelvis)</th><th>Pelvis adds</th><th>Appears on surface</th></tr></thead><tbody>`;
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd], tag = `<span class="tag${sd}">${sd}</span>`;
+    const hlA = Math.abs(g.effectAbd) >= 3 ? 'hl' : '', hlR = Math.abs(g.effectRot) >= 3 ? 'hl' : '';
+    h += `<tr class="${hlA}"><td>${tag} abd/add</td><td class="num">${dirWord(g.abd, 'abd', 'add')}</td><td class="num">${g.effectAbd >= 0 ? '+' : '−'}${r0(Math.abs(g.effectAbd))}°</td><td class="num">${dirWord(g.apparentAbd, 'abd', 'add')}</td></tr>`;
+    h += `<tr class="${hlR}"><td>${tag} rotation</td><td class="num">${dirWord(g.er, 'ER', 'IR')}</td><td class="num">${g.effectRot >= 0 ? '+' : '−'}${r0(Math.abs(g.effectRot))}°</td><td class="num">${dirWord(g.apparentRot, 'ER', 'IR')}</td></tr>`;
+  }
+  h += '</tbody></table>';
+  const anyHl = ['R', 'L'].some(sd => Math.abs(m.legs[sd].effectAbd) >= 3 || Math.abs(m.legs[sd].effectRot) >= 3);
+  if (anyHl) h += `<div class="callout amber">Highlighted rows: the pelvis is changing how the leg <b>looks</b> by 3° or more. A leg can look abducted or rotated on the surface while the hip itself is closer to neutral – or the reverse.</div>`;
+  if (m.windswept) h += `<div class="callout amber"><b>Windswept to the ${m.windswept}</b> as seen on the surface: ${m.windswept === 'L' ? 'abduction of the L hip / adduction of the R hip' : 'abduction of the R hip / adduction of the L hip'}.</div>`;
+  h += `<p class="help">Approximation: appears ≈ measured + pelvic effect (${seated ? 'rotation for abd/add, obliquity for IR/ER' : 'obliquity for abd/add, rotation for IR/ER'}).</p>`;
+
+  if (!seated) {
+    h += '<h3>Attitude of hips/knees</h3><table class="ro"><thead><tr><th></th><th>Hip flex</th><th>Knee flex</th><th>Height under knee</th></tr></thead><tbody>';
+    for (const sd of ['R', 'L']) {
+      const g = m.legs[sd], entered = num(state[m.mode].legs[sd].kneeHeight, NaN);
+      h += `<tr><td><span class="tag${sd}">${sd}</span></td><td class="num">${r0(g.hipFlex)}°</td><td class="num">${r0(g.knee)}°</td><td class="num">model ≈${r0(Math.max(0, g.popliteal))} cm${Number.isFinite(entered) ? `<br>entered ${r1(entered)} cm` : ''}</td></tr>`;
+    }
+    h += '</tbody></table>';
+    const mism = ['R', 'L'].filter(sd => { const e = num(state[m.mode].legs[sd].kneeHeight, NaN); return Number.isFinite(e) && Math.abs(e - Math.max(0, m.legs[sd].popliteal)) > 3; });
+    if (mism.length) h += `<div class="callout amber">Entered height under the knee differs from the model for ${mism.join(' and ')}. Use “Estimate hip/knee flexion” in Lower limbs, or adjust the angles.</div>`;
+    h += '<p class="help">Model height assumes the popliteal fossa rests on the surface when the leg is straight.</p>';
+  } else {
+    h += '<h3>Hips/knees at the seat</h3><table class="ro"><thead><tr><th></th><th>Hip flex</th><th>Knee flex</th></tr></thead><tbody>';
+    for (const sd of ['R', 'L']) { const g = m.legs[sd]; h += `<tr><td><span class="tag${sd}">${sd}</span></td><td class="num">${r0(g.hipFlex)}°</td><td class="num">${r0(g.knee)}°</td></tr>`; }
+    h += '</tbody></table><p class="help">Seated default is 90° at hip and knee; increase hip flexion to represent a slumped/sacral sitting position.</p>';
+  }
+
+  // flags
+  h += '<h3>Range of movement checks</h3><ul class="flags">';
+  const clamps = m.limits.filter(l => l.clamped), ends = m.limits.filter(l => l.atEnd);
+  for (const l of clamps) { const t = limitText(l); h += `<li class="warn"><b>Limited:</b> ${t.side}${esc(l.joint)} – entered ${r0(l.desired)}°, drawn at ${r0(l.applied)}° (${esc(t.src)}).</li>`; }
+  for (const l of ends) { const t = limitText(l); h += `<li class="amber"><b>End of range:</b> ${t.side}${esc(l.joint)} at ${r0(l.applied)}° (${esc(t.src)}).</li>`; }
+  const invalid = []; for (const [key, it] of Object.entries(ROM_ITEMS)) { (it.sided ? ['R', 'L'] : ['v']).forEach(sd => { const p = parseRom(it.sided ? state.rom[key][sd] : state.rom[key].v); if (p.error) invalid.push(`${it.n}${sd === 'v' ? '' : ' ' + sd}`); }); }
+  if (invalid.length) h += `<li class="warn">Notation not recognised for item(s) ${invalid.join(', ')} – standard range used until corrected.</li>`;
+  const std = [...new Set(m.limits.filter(l => l.rom.source === 'standard' && !l.rom.invalid).map(l => `${l.rom.item.n}${l.side ? ' ' + l.side : ''}`))];
+  if (std.length) h += `<li class="info">No range entered for item(s) ${std.join(', ')} – standard range used as the limit.</li>`;
+  h += `<li class="info">Range limits on the lying view use items 1 (hip flexion), 4 (hip abduction/adduction), 2 (knee), 5 (ankle) and 3 (neck), matching the sheet's lying/standing set. The sheet has no hip rotation item for lying, so a standard rotation range is used only as a soft reference. Sitting uses items 1, 3, 6, 7, 8 and 9 (applied when the sitting view is built; shown now in the Part C draft).</li>`;
+  for (const n of m.notes) h += `<li class="${n.kind === 'warn' ? 'warn' : 'amber'}"><b>Surface contact:</b> ${esc(n.text)}</li>`;
+  if (!clamps.length && !ends.length) h += `<li class="info">No joint is at or beyond its available range.</li>`;
+  h += '</ul>';
+
+  // spinal
+  if (m.spinal.has) {
+    const sp = m.spinal;
+    h += `<h3>Spinal measurements</h3><div class="callout">R ${r1(sp.R)} cm · L ${r1(sp.L)} cm. ${sp.shorter ? `The <b>${sp.shorter}</b> side is ${r1(Math.abs(sp.diff))} cm shorter when held corrected, suggesting a fixed element of asymmetry with concavity on the ${sp.shorter}.` : 'No meaningful R/L difference when held corrected.'}`;
+    if (sp.shorter && m.trunk.type !== 'none') {
+      const concave = m.trunk.convex > 0 ? 'R' : 'L';
+      if (concave !== sp.shorter) h += ` <b>Check:</b> the curve entered is concave to the ${concave}, but the shorter side is the ${sp.shorter}.`;
+    }
+    h += `</div>`;
+  }
+  $('readouts').innerHTML = h;
+}
+
+// per-control messages and outputs
+function renderInline(m) {
+  document.querySelectorAll('#inputs .msg').forEach(e => { e.textContent = ''; e.className = 'msg'; });
+  const put = (id, cls, text) => { const e = $('msg-' + id); if (e) { e.className = 'msg ' + cls; e.textContent = (e.textContent ? e.textContent + ' ' : '') + text; } };
+  for (const l of m.limits) {
+    const t = limitText(l);
+    if (l.clamped) put(l.id, 'warn', `Limited to ${r0(l.applied)}° by ${t.src}.`);
+    else if (l.atEnd) put(l.id, 'amber', `At end of available range (${t.src}).`);
+  }
+  for (const n of m.notes) put(n.id, n.kind === 'warn' ? 'warn' : 'info', n.text);
+  const P = m.pelvis, Sh = m.shoulders;
+  const out = (id, s) => { const e = $('out-' + id); if (e) e.textContent = s; };
+  out('pelvis.rot', P.rotCm ? `≈${r0(Math.abs(P.rotDeg))}°` : '');
+  out('pelvis.obl', P.oblCm ? `≈${r0(Math.abs(P.oblDeg))}°` : '');
+  out('shoulders.rot', Sh.rotCm ? `≈${r0(Math.abs(Sh.rotDeg))}°` : '');
+  out('shoulders.obl', Sh.oblCm ? `≈${r0(Math.abs(Sh.oblDeg))}°` : '');
+  const A = state[m.mode];
+  out('trunk.mag', `~${r0(num(A.trunk.mag, 0))}° (visual)`);
+  for (const sd of ['R', 'L']) {
+    const g = m.legs[sd];
+    out(`legs.${sd}.abd`, `appears ${dirWord(g.apparentAbd, 'abd', 'add')}`);
+    out(`legs.${sd}.rot`, `appears ${dirWord(g.apparentRot, 'ER', 'IR')}`);
+    if (!m.seated) out(`legs.${sd}.kneeHeight`, `model ≈${r0(Math.max(0, g.popliteal))} cm`);
+  }
+  if (Math.abs(num(A.pelvis.rot.val, 0)) > 15 || Math.abs(num(A.pelvis.obl.val, 0)) > 15) put('pelvis.rot', 'info', 'Values above 15 cm are capped.');
+  // ROM notation errors
+  for (const [key, it] of Object.entries(ROM_ITEMS)) (it.sided ? ['R', 'L'] : ['v']).forEach(sd => {
+    const p = parseRom(it.sided ? state.rom[key][sd] : state.rom[key].v), e = $(`err-${key}-${sd}`);
+    if (e) e.textContent = p.error || '';
+  });
+  // group counts
+  const cnt = (id, n) => { const e = $('count-' + id); if (e) e.textContent = n ? `${n} set` : ''; };
+  cnt('g-pelvis', ['rot', 'obl', 'tilt'].filter(k => A.pelvis[k].dir !== 'N').length);
+  cnt('g-shoulders', ['rot', 'obl'].filter(k => A.shoulders[k].dir !== 'N').length);
+  cnt('g-rom', Object.values(state.rom).reduce((s, o) => s + Object.entries(o).filter(([k, v]) => !k.startsWith('at') && String(v).trim()).length, 0));
+  cnt('g-trunk', A.trunk.type !== 'none' ? 1 : 0);
+  cnt('g-ap', ['lordosis', 'kyphosis', 'cervical'].filter(kk => A.trunk[kk].dir !== 'N').length);
+  cnt('g-spinal', ['R', 'L'].filter(s => String(state.spinal[s]).trim()).length);
+}
+
+// ---------- summaries ----------
+function summaryB(m) {
+  const P = m.pelvis, Sh = m.shoulders, L = [];
+  const cmLine = (cm, deg, pos) => cm ? `${pos} on the ${cm > 0 ? 'R' : 'L'} ${r1(Math.abs(cm))} cm (≈${r0(Math.abs(deg))}°)` : 'Neutral';
+  const seated = m.seated, where = seated ? 'in the seat' : 'on the surface';
+  L.push(`PRESENTING POSTURE IN CURRENT ${seated ? 'SITTING' : 'LYING (supine)'} – generated by postural modelling tool v0.6.1, visual aid only`);
+  L.push('');
+  L.push(`Pelvis: rotation – ${cmLine(P.rotCm, P.rotDeg, 'Fwd')}`);
+  L.push(`Pelvis: obliquity – ${cmLine(P.oblCm, P.oblDeg, 'Up')}`);
+  L.push(`Pelvis: anterior/posterior tilt – ${P.tiltGrade ? (P.tiltDir === 'A' ? 'Anterior (' : 'Posterior (') + '+'.repeat(P.tiltGrade) + ')' : 'Neutral'}`);
+  L.push(`  (cm converted using ASIS width ${r1(m.asisW)} cm)`);
+  const ab = sd => { const g = m.legs[sd]; return `${sd}: ${dirWord(g.abd, 'abduction', 'adduction')}`; };
+  const ro = sd => { const g = m.legs[sd]; return `${sd}: ${dirWord(g.er, 'external rotation', 'internal rotation')}`; };
+  const abdRel = seated ? 'relative to pelvic rotation' : 'relative to pelvic obliquity';
+  const rotRel = seated ? 'relative to pelvic obliquity' : 'relative to pelvic rotation';
+  L.push(`Abduction/adduction of lower limbs (${abdRel}) – ${ab('R')}; ${ab('L')}`);
+  L.push(`  Appearance ${where} ≈ R ${dirWord(m.legs.R.apparentAbd, 'abd', 'add')}, L ${dirWord(m.legs.L.apparentAbd, 'abd', 'add')}${m.windswept ? ` – windswept to the ${m.windswept}` : ''}`);
+  L.push(`Internal/external rotation of lower limbs (${rotRel}) – ${ro('R')}; ${ro('L')}`);
+  L.push(`  Appearance ${where} ≈ R ${dirWord(m.legs.R.apparentRot, 'ER', 'IR')}, L ${dirWord(m.legs.L.apparentRot, 'ER', 'IR')}`);
+  if (!seated) {
+    const att = sd => { const g = m.legs[sd], hh = num(state[m.mode].legs[sd].kneeHeight, NaN); return `${sd} hip ${g.hipFlex > 2 ? `flexed ${r0(g.hipFlex)}°` : 'extended'}, knee ${g.knee > 2 ? `flexed ${r0(g.knee)}°` : g.knee < -2 ? `hyperextended ${r0(-g.knee)}°` : 'extended'}${g.belowSurface ? ' – heel below surface, not possible in lying' : ''}${Number.isFinite(hh) ? ` (unsupported height under knee ${r1(hh)} cm)` : ''}`; };
+    L.push(`Attitude of hips/knees – ${att('R')}; ${att('L')}`);
+  } else {
+    const att = sd => { const g = m.legs[sd]; return `${sd} hip ${r0(g.hipFlex)}°, knee ${r0(g.knee)}° (seated)`; };
+    L.push(`Hips/knees at the seat – ${att('R')}; ${att('L')}`);
+  }
+  L.push(`Shoulders: rotation – ${cmLine(Sh.rotCm, Sh.rotDeg, 'Fwd')}`);
+  L.push(`Shoulders: obliquity – ${cmLine(Sh.oblCm, Sh.oblDeg, 'Up')}`);
+  L.push(`  (cm converted using shoulder width ${r1(m.shW)} cm)`);
+  const tr = m.trunk;
+  L.push(`Lateral curvature of the trunk – ${tr.type === 'none' || !tr.mag ? 'None observed' : `${tr.type}-shaped curve, primary convexity to the ${tr.convex > 0 ? 'L' : 'R'}, apex ${tr.apex}; approx. ${r0(tr.mag)}° visual estimate (not a Cobb angle)${tr.type === 'S' ? '; secondary curve in the opposite direction' : ''}; ${tr.comp === 'comp' ? 'compensated' : `trunk shifted ${r1(Math.abs(tr.shift))} cm to the ${tr.convex > 0 ? 'L' : 'R'}`}`}`);
+  const sg = m.sagittal, gw = (g, inc, flat) => g === 0 ? null : `${g > 0 ? inc : flat} (${'+'.repeat(Math.abs(g))})`;
+  const ap = [gw(sg.gLord, 'increased lumbar lordosis', 'flattened lumbar lordosis'), gw(sg.gKyph, 'increased thoracic kyphosis', 'flattened thoracic kyphosis'), gw(sg.gCerv, 'increased cervical extension', 'flattened cervical curve')].filter(Boolean);
+  L.push(`Antero/posterior curvature of the trunk – ${ap.length ? ap.join('; ') : 'typical curves'}`);
+  if (!seated) L.push(`  (model, indicative: lumbar spine ≈${r1(sg.lumbarGap)} cm off surface; back of head ≈${r1(Math.max(0, m.head.occiput[2]))} cm off surface)`);
+  const arm = sd => { const a = m.arms[sd]; return `${sd}: ${a.abd ? `abducted ${r0(a.abd)}°` : 'by side'}${a.flex ? `, flexed ${r0(a.flex)}°` : ''}, elbow ${a.elbow > 5 ? `flexed ${r0(a.elbow)}° (forearm ${a.forearm === 'across' ? 'across trunk' : a.forearm === 'out' ? 'out to side' : 'towards ceiling'})` : 'extended'}`; };
+  L.push(`Attitude of the arms – ${arm('R')}; ${arm('L')}`);
+  const H = m.head, hp = [];
+  if (Math.abs(H.flex) >= 1) hp.push(H.flex > 0 ? `flexed ${r0(H.flex)}°` : `extended ${r0(-H.flex)}°`);
+  if (Math.abs(H.side) >= 1) hp.push(`side flexed to the ${H.side > 0 ? 'R' : 'L'} ${r0(Math.abs(H.side))}°`);
+  if (Math.abs(H.rot) >= 1) hp.push(`rotated to the ${H.rot > 0 ? 'R' : 'L'} ${r0(Math.abs(H.rot))}°`);
+  L.push(`Position of head – ${hp.length ? hp.join('; ') : 'Neutral'}${m.sagittal.gCerv ? ' (includes cervical curve)' : ''}`);
+  const foot = sd => { const g = m.legs[sd], f = state[m.mode].feet[sd], p = []; p.push(Math.abs(g.ankle) < 1 ? 'plantigrade (0°)' : g.ankle > 0 ? `dorsiflexion ${r0(g.ankle)}°` : `plantarflexion ${r0(-g.ankle)}°`); const iv = dirVal(f.inev, 'inv'); if (iv) p.push(iv > 0 ? `inversion ${r0(iv)}°` : `eversion ${r0(-iv)}°`); if (f.supPro !== 'N') p.push(f.supPro === 'S' ? 'supinated' : 'pronated'); return `${sd}: ${p.join(', ')}`; };
+  L.push(`Position of feet – ${foot('R')}; ${foot('L')}`);
+  L.push('Weight distribution – not modelled yet');
+  if (!seated) L.push(`Model heights above surface (indicative) – ASIS R ${r1(P.asis.R[2])} / L ${r1(P.asis.L[2])} cm; acromion R ${r1(Sh.acromion.R[2])} / L ${r1(Sh.acromion.L[2])} cm; under knee R ${r0(Math.max(0, m.legs.R.popliteal))} / L ${r0(Math.max(0, m.legs.L.popliteal))} cm`);
+  else L.push(`Model heights above seat (indicative) – ASIS R ${r1(P.asis.R[2])} / L ${r1(P.asis.L[2])} cm; acromion R ${r1(Sh.acromion.R[2])} / L ${r1(Sh.acromion.L[2])} cm`);
+  L.push('');
+  if (m.spinal.has) {
+    L.push('SPINAL MEASUREMENTS (supine, trunk held in most corrected position)');
+    L.push(`RIGHT coracoid process to RIGHT ASIS: ${r1(m.spinal.R)} cm`);
+    L.push(`LEFT coracoid process to LEFT ASIS: ${r1(m.spinal.L)} cm`);
+    L.push(`Comment: ${m.spinal.shorter ? `${m.spinal.shorter} side ${r1(Math.abs(m.spinal.diff))} cm shorter – suggests fixed element of trunk asymmetry` : 'no meaningful difference'}`);
+    L.push('');
+  }
+  const hasRom = Object.values(state.rom).some(o => Object.entries(o).some(([k, v]) => !k.startsWith('at') && String(v).trim()));
+  if (hasRom) {
+    L.push('JOINT RANGE OF MOVEMENT (AO Neutral-0)');
+    for (const [key, it] of Object.entries(ROM_ITEMS)) {
+      const o = state.rom[key];
+      if (it.sided) {
+        if (!String(o.R).trim() && !String(o.L).trim()) continue;
+        const f = sd => { const v = String(o[sd]).trim(), bad = v && parseRom(v).error; const at = String(o['at' + sd] ?? '').trim(); return `${sd} ${v || '–'}${bad ? ' (notation not recognised – check)' : ''}${at ? ` (${it.at.toLowerCase()} ${at}°)` : ''}`; };
+        L.push(`${it.n}. ${it.label} [std ${it.std}]: ${f('R')}; ${f('L')}`);
+      } else if (String(o.v).trim()) L.push(`${it.n}. ${it.label} [std ${it.std}]: ${String(o.v).trim()}${parseRom(o.v).error ? ' (notation not recognised – check)' : ''}`);
+    }
+  }
+  const sups = state[m.mode].supports || [];
+  if (sups.length) {
+    L.push(''); L.push(`Supports in place (${seated ? 'sitting' : 'lying'}) — visual layout, body not yet adapted:`);
+    for (const s of sups) L.push(`  • ${s.label} (${SUPPORT_TYPES[s.type].name}) — ${s.len}×${s.wid} cm, rotated ${s.rot}°`);
+  }
+  return L.join('\n');
+}
+// Critical limitations for a given set of ROM items (Part C).
+// markAtLimit = check the drawn lying posture against the limit (only meaningful for the lying set).
+function criticalLines(keys, markAtLimit, m) {
+  const out = [];
+  for (const key of keys) {
+    const it = ROM_ITEMS[key];
+    for (const sd of it.sided ? ['R', 'L'] : [null]) {
+      const r = romRange(state, key, sd);
+      if (r.source !== 'entered') continue;
+      const restr = [];
+      if (r.max < r.std.max) restr.push(`${it.dirs[0]} reduced (${r.max < 0 ? `does not reach neutral – lacks ${r0(-r.max)}°` : `${r0(r.max)}° vs ${r0(r.std.max)}°`})`);
+      if (r.min > r.std.min) restr.push(`${it.dirs[1]} reduced (${r.min > 0 ? `lacks ${r0(r.min)}° to neutral` : `${r0(-r.min)}° vs ${r0(-r.std.min)}°`})`);
+      if (!restr.length) continue;
+      const at = sd && it.at && String(state.rom[key]['at' + sd] ?? '').trim() ? ` (${it.at.toLowerCase()} ${String(state.rom[key]['at' + sd]).trim()}°)` : '';
+      const used = markAtLimit && m.limits.filter(l => l.key === key && l.side === sd && (l.clamped || l.atEnd)).length;
+      out.push(`${it.n}. ${sd ? sd + ' ' : ''}${it.label}: ${r.text}${at} [std ${it.std}] – ${restr.join('; ')}${used ? ' – presenting posture is AT this limit' : ''}`);
+    }
+  }
+  return out;
+}
+function summaryC(m) {
+  const L = ['IDENTIFICATION OF CRITICAL LIMITATIONS (Part C)',
+    'Draft only – confirm against your own measurements before marking the sheet. Listed in full AO Neutral-0 notation.', ''];
+  // 1) SITTING – circle set: items 1, 3, 6, 7, 8, 9
+  L.push('SITTING (joint range) – critical limitations to CIRCLE on the sheet [items 1, 3, 6-9]');
+  const sit = criticalLines(['i1', 'i3', 'i6', 'i7', 'i8', 'i9'], false, m);
+  if (sit.length) sit.forEach(x => L.push(x)); else L.push('  No reduced ranges entered among items 1, 3, 6-9.');
+  L.push('');
+  // 2) LYING / STANDING – underline set: items 1-5
+  L.push('LYING / STANDING (joint range) – critical limitations to UNDERLINE on the sheet [items 1-5]');
+  const lie = criticalLines(['i1', 'i2', 'i3', 'i4', 'i5'], true, m);
+  if (lie.length) lie.forEach(x => L.push(x)); else L.push('  No reduced ranges entered among items 1-5.');
+  L.push('');
+  // 3) Altered orientation / body shape (pelvis, shoulder, spine) – describe BOTH postures
+  const bodyShape = (mm, tag) => {
+    const P = mm.pelvis, Sh = mm.shoulders, bs = [];
+    if (P.rotCm) bs.push(`Pelvis rotated: ASIS forward on the ${P.rotCm > 0 ? 'R' : 'L'} (${r1(Math.abs(P.rotCm))} cm ≈ ${r0(Math.abs(P.rotDeg))}°)`);
+    if (P.oblCm) bs.push(`Pelvis obliquity: ASIS up on the ${P.oblCm > 0 ? 'R' : 'L'} (${r1(Math.abs(P.oblCm))} cm ≈ ${r0(Math.abs(P.oblDeg))}°)`);
+    if (P.tiltGrade) bs.push(`Pelvis ${P.tiltDir === 'A' ? 'anteriorly' : 'posteriorly'} tilted (${'+'.repeat(P.tiltGrade)})`);
+    if (Sh.rotCm) bs.push(`Shoulders rotated: forward on the ${Sh.rotCm > 0 ? 'R' : 'L'} (${r1(Math.abs(Sh.rotCm))} cm ≈ ${r0(Math.abs(Sh.rotDeg))}°)`);
+    if (Sh.oblCm) bs.push(`Shoulders obliquity: up on the ${Sh.oblCm > 0 ? 'R' : 'L'} (${r1(Math.abs(Sh.oblCm))} cm ≈ ${r0(Math.abs(Sh.oblDeg))}°)`);
+    const tw = Sh.rotDeg - P.rotDeg; if (Math.abs(tw) >= 3) bs.push(`Trunk rotation pelvis→shoulders ≈ ${r0(Math.abs(tw))}° (shoulders further forward on the ${tw > 0 ? 'R' : 'L'})`);
+    if (mm.trunk.type !== 'none' && mm.trunk.mag) bs.push(`Lateral curvature: ${mm.trunk.type}-shaped, convex to the ${mm.trunk.convex > 0 ? 'L' : 'R'}, apex ${mm.trunk.apex} (~${r0(mm.trunk.mag)}° visual estimate, not a Cobb angle)`);
+    const sg = mm.sagittal, apc = [];
+    if (sg.gLord) apc.push(`${sg.gLord > 0 ? 'increased' : 'flattened'} lumbar lordosis`);
+    if (sg.gKyph) apc.push(`${sg.gKyph > 0 ? 'increased' : 'flattened'} thoracic kyphosis`);
+    if (sg.gCerv) apc.push(`${sg.gCerv > 0 ? 'increased' : 'flattened'} cervical curve`);
+    if (apc.length) bs.push(`Antero/posterior curvature: ${apc.join(', ')}`);
+    L.push(`ALTERED ORIENTATION OR BODY SHAPE – ${tag}`);
+    if (bs.length) bs.forEach(x => L.push(`  ${x}`)); else L.push('  No altered orientation entered.');
+    if (mm.spinal.has && mm.spinal.shorter) L.push(`  Fixed element (spinal measurement): coracoid–ASIS ${r1(Math.abs(mm.spinal.diff))} cm shorter on the ${mm.spinal.shorter} when held corrected`);
+    L.push('');
+  };
+  const lyM = solve(merged({ ...state, mode: 'lying' }), { mode: 'lying' });
+  const siM = solveSitting(merged({ ...state, mode: 'sitting' }));
+  bodyShape(lyM, 'LYING (supine)');
+  bodyShape(siM, 'SITTING');
+  // Correctability: does the pelvis (or shoulders) cross the neutral line between postures?
+  L.push('SITTING vs LYING – correctability of pelvic/shoulder asymmetry');
+  const cmpStart = L.length;
+  const sign = v => Math.abs(v) < 0.5 ? 0 : (v > 0 ? 1 : -1); // + = R
+  const cmp = (label, ly, si, posWord, negWord) => {
+    const sl = sign(ly), ss = sign(si);
+    if (sl === 0 && ss === 0) return;
+    const side = v => v > 0 ? 'R' : 'L';
+    if (sl !== 0 && ss !== 0 && sl !== ss) {
+      L.push(`  ${label}: ${posWord} on the ${side(si)} in sitting (${r1(Math.abs(si))} cm) but on the ${side(ly)} in lying (${r1(Math.abs(ly))} cm) – crosses the neutral line, so neutral is achievable → POTENTIALLY CORRECTABLE; take into account when planning supports.`);
+    } else if (sl !== 0 && ss !== 0 && sl === ss) {
+      L.push(`  ${label}: ${posWord} on the ${side(si)} in both postures (sitting ${r1(Math.abs(si))} cm, lying ${r1(Math.abs(ly))} cm) – same side throughout; may include a fixed element.`);
+    } else {
+      L.push(`  ${label}: present in ${sl ? 'lying' : 'sitting'} (${r1(Math.abs(sl ? ly : si))} cm) but neutral in ${sl ? 'sitting' : 'lying'} – reducible in at least one posture.`);
+    }
+  };
+  cmp('Pelvic rotation', lyM.pelvis.rotCm, siM.pelvis.rotCm, 'ASIS forward');
+  cmp('Pelvic obliquity', lyM.pelvis.oblCm, siM.pelvis.oblCm, 'ASIS up');
+  cmp('Shoulder obliquity', lyM.shoulders.oblCm, siM.shoulders.oblCm, 'up');
+  if (L.length === cmpStart) L.push('  Enter both a sitting and a lying posture to compare correctability.');
+  L.push('  Note: a fixed (non-correctable) element is suggested where the coracoid–ASIS spinal measurements differ; correctability shown here is from the entered positions only.');
+  L.push('');
+  L.push('RECOMMENDATIONS');
+  L.push('  Sitting – to follow once supports are modelled (Phases 2-3).');
+  L.push('  Lying/standing – to follow once supports are modelled (Phases 2-3).');
+  return L.join('\n');
+}
+
+function renderSummary(el, text) {
+  el.dataset.text = text;
+  el.innerHTML = text.split('\n').map(line => {
+    if (!line.trim()) return '';
+    if (/^[A-Z][A-Z \/().–-]{8,}/.test(line) && line.slice(0, 12) === line.slice(0, 12).toUpperCase()) return `<h4>${esc(line)}</h4>`;
+    if (line.startsWith('  ')) return `<p class="sub">${esc(line.trim())}</p>`;
+    const i = line.indexOf(' – ');
+    if (i > 0 && i < 90) return `<p><b>${esc(line.slice(0, i))}</b> – ${esc(line.slice(i + 3))}</p>`;
+    const j = line.indexOf(': ');
+    if (j > 0 && j < 100) return `<p><b>${esc(line.slice(0, j))}:</b> ${esc(line.slice(j + 2))}</p>`;
+    return `<p>${esc(line)}</p>`;
+  }).join('');
+}
+function render(skipSupList) {
+  const m = drawScene();
+  renderReadouts(m);
+  renderInline(m);
+  renderSummary($('sumB'), summaryB(m));
+  renderSummary($('sumC'), summaryC(m));
+  if (!skipSupList) renderSupportList();
+}
+
+// ---------- examples (fictitious, for testing only) ----------
+function exampleA() {
+  const s = defaultState();
+  s.spinal = { R: '38', L: '35.5' };
+  Object.assign(s.rom.i1, { R: '110/15/0', L: '115/10/0' });
+  Object.assign(s.rom.i2, { R: '130/35/0', L: '130/30/0', atR: '20', atL: '20' });
+  Object.assign(s.rom.i4, { R: '20/0/15', L: '45/0/5', atR: '10', atL: '10' });
+  Object.assign(s.rom.i5, { R: '0/10/40', L: '5/0/35', atR: '20', atL: '20' });
+  Object.assign(s.rom.i6, { R: '30/0/20', L: '70/0/5' });
+  Object.assign(s.rom.i7, { R: '20/0/35', L: '50/0/10' });
+  Object.assign(s.rom.i8, { R: '130/40/0', L: '130/30/0' });
+  const ly = s.lying;
+  ly.pelvis.rot = { dir: 'R', val: '3' }; ly.pelvis.obl = { dir: 'L', val: '2' }; ly.pelvis.tilt = { dir: 'P', val: '1' };
+  ly.shoulders.rot = { dir: 'L', val: '2' }; ly.shoulders.obl = { dir: 'R', val: '1.5' };
+  Object.assign(ly.legs.R, { abd: { dir: 'add', val: '10' }, rot: { dir: 'ir', val: '15' }, hipFlex: '25', kneeFlex: '45', kneeHeight: '12' });
+  Object.assign(ly.legs.L, { abd: { dir: 'abd', val: '25' }, rot: { dir: 'er', val: '30' }, hipFlex: '30', kneeFlex: '50', kneeHeight: '14' });
+  Object.assign(ly.trunk, { type: 'C', convex: 'R', apex: 'thoracolumbar', mag: '30', comp: 'comp', kyphosis: { dir: 'inc', val: '2' }, lordosis: { dir: 'flat', val: '1' } });
+  ly.head.rot = { dir: 'L', val: '20' };
+  Object.assign(ly.arms.R, { abd: '15', elbow: '90', forearm: 'across' }); Object.assign(ly.arms.L, { abd: '20' });
+  ly.feet.R.dfpf = { dir: 'pf', val: '30' }; ly.feet.R.inev = { dir: 'inv', val: '10' };
+  ly.feet.L.dfpf = { dir: 'pf', val: '25' }; ly.feet.L.inev = { dir: 'ev', val: '5' };
+  // Sitting: pelvis crosses the neutral line vs lying (rotation & obliquity to the other side) → potentially correctable
+  const si = s.sitting;
+  si.pelvis.rot = { dir: 'L', val: '2' }; si.pelvis.obl = { dir: 'R', val: '2.5' }; si.pelvis.tilt = { dir: 'P', val: '2' };
+  si.shoulders.obl = { dir: 'L', val: '2' };
+  Object.assign(si.legs.R, { abd: { dir: 'add', val: '10' }, rot: { dir: 'ir', val: '10' }, hipFlex: '95', kneeFlex: '90' });
+  Object.assign(si.legs.L, { abd: { dir: 'abd', val: '15' }, rot: { dir: 'er', val: '15' }, hipFlex: '90', kneeFlex: '95' });
+  Object.assign(si.trunk, { type: 'C', convex: 'R', apex: 'thoracic', mag: '22', comp: 'comp', kyphosis: { dir: 'inc', val: '2' } });
+  si.head.side = { dir: 'L', val: '10' };
+  return s;
+}
+function exampleB() {
+  const s = defaultState();
+  s.spinal = { R: '37', L: '40' };
+  Object.assign(s.rom.i2, { R: '130/20/0', L: '130/15/0' });
+  Object.assign(s.rom.i8, { R: '130/25/0', L: '130/20/0' });
+  const ly = s.lying;
+  ly.pelvis.obl = { dir: 'R', val: '2' };
+  ly.shoulders.obl = { dir: 'L', val: '2.5' }; ly.shoulders.rot = { dir: 'L', val: '3' };
+  Object.assign(ly.trunk, { type: 'S', convex: 'L', apex: 'thoracic', mag: '40', comp: 'decomp', shift: '3', lordosis: { dir: 'inc', val: '2' }, cervical: { dir: 'inc', val: '1' } });
+  Object.assign(ly.legs.R, { kneeFlex: '5' }); Object.assign(ly.legs.L, { kneeFlex: '5', abd: { dir: 'abd', val: '5' } });
+  ly.head.side = { dir: 'R', val: '15' };
+  const si = s.sitting;
+  si.pelvis.obl = { dir: 'R', val: '3' }; si.pelvis.tilt = { dir: 'P', val: '3' };
+  si.shoulders.obl = { dir: 'L', val: '3' };
+  Object.assign(si.trunk, { type: 'S', convex: 'L', apex: 'thoracic', mag: '45', comp: 'decomp', shift: '4', lean: { dir: 'fwd', val: '10' }, kyphosis: { dir: 'inc', val: '2' } });
+  si.head.side = { dir: 'R', val: '18' };
+  return s;
+}
+
+function buildViewSwitch() {
+  const box = $('viewswitch');
+  const opts = state.mode === 'sitting'
+    ? [['front', 'Front', ''], ['sideL', 'Side – from L', 'sL'], ['sideR', 'Side – from R', 'sR']]
+    : [['top', 'From above', ''], ['L', 'Side – from L', 'sL'], ['R', 'Side – from R', 'sR'], ['both', 'Both sides', '']];
+  box.style.gridTemplateColumns = `repeat(${opts.length},1fr)`;
+  box.innerHTML = opts.map(([v, t, c]) => `<label class="${c}"><input type="radio" name="viewmode" value="${v}" ${v === currentView ? 'checked' : ''}><span>${t}</span></label>`).join('');
+  box.querySelectorAll('[name="viewmode"]').forEach(r => r.addEventListener('change', () => { currentView = r.value; render(); }));
+}
+// ---------- events ----------
+function init() {
+  buildInputs(); syncUI(); render();
+  const form = $('inputs');
+  const onChange = e => {
+    const t = e.target;
+    if (t.dataset.supId) {
+      const s = state[state.mode].supports.find(x => x.id === t.dataset.supId);
+      if (s) { const f = t.dataset.supField; if (f === 'label') s.label = t.value; else { s[f] = parseFloat(t.value) || 0; const sp = t.nextElementSibling; if (sp) sp.textContent = f === 'rot' ? s.rot + '°' : s[f] + ' cm'; } render(true); }
+      return;
+    }
+    if (t.type === 'radio') { setP(t.name, t.value); updateDisabled(); }
+    else if (t.dataset.path) {
+      let v = t.value;
+      if (t.type === 'number' && v !== '') { const n = parseFloat(v), mn = parseFloat(t.min), mx = parseFloat(t.max); if (Number.isFinite(n)) { const c = clamp(n, Number.isFinite(mn) ? mn : -Infinity, Number.isFinite(mx) ? mx : Infinity); if (c !== n && e.type === 'change') { v = String(c); t.value = v; } } }
+      setP(t.dataset.path, v); updateDisabled();
+    } else return;
+    render();
+  };
+  form.addEventListener('input', onChange);
+  form.addEventListener('change', onChange);
+  form.addEventListener('click', e => {
+    const addBtn = e.target.closest('#supAddBtn');
+    if (addBtn) { addSupport($('supAdd').value); render(); showStatus('Support added — drag it into position on the model.'); return; }
+    const rm = e.target.closest('[data-sup-remove]');
+    if (rm) { const id = rm.dataset.supRemove; const list = state[state.mode].supports; const i = list.findIndex(x => x.id === id); if (i >= 0) list.splice(i, 1); if (selectedSupport === id) selectedSupport = null; render(); return; }
+    const sel = e.target.closest('[data-sup-select]');
+    if (sel && !e.target.closest('input,button')) { selectedSupport = sel.dataset.supSelect; render(); return; }
+    const sd = e.target.dataset && e.target.dataset.est; if (!sd) return;
+    const legs = state[state.mode].legs;
+    const h = num(legs[sd].kneeHeight, NaN), msg = $(`msg-legs.${sd}.kneeHeight`);
+    if (!Number.isFinite(h)) { if (msg) { msg.className = 'msg info'; msg.textContent = 'Enter the height under the knee first.'; } return; }
+    const m = solve(merged(state), { mode: 'lying' }), est = flexFromKneeHeight(h, m.L);
+    legs[sd].hipFlex = String(est.hip); legs[sd].kneeFlex = String(est.knee);
+    syncUI(); render();
+    const msg2 = $(`msg-legs.${sd}.kneeHeight`); if (msg2 && !msg2.textContent) { msg2.className = 'msg info'; msg2.textContent = `Estimated hip ${est.hip}°, knee ${est.knee}° (assumes heel resting on the surface). Adjust if needed.`; }
+  });
+  ['tSkel', 'tGhost', 'tShade', 'tLabels'].forEach(id => $(id).addEventListener('change', render));
+  let resetArmed = null;
+  $('reset').addEventListener('click', () => {
+    const b = $('reset');
+    if (!resetArmed) { b.textContent = 'Click again to clear all values'; b.classList.add('armed'); resetArmed = setTimeout(() => { resetArmed = null; b.textContent = 'Reset to neutral'; b.classList.remove('armed'); }, 4000); return; }
+    clearTimeout(resetArmed); resetArmed = null; b.textContent = 'Reset to neutral'; b.classList.remove('armed');
+    state = defaultState(); syncUI(); render(); showStatus('All values cleared.');
+  });
+  buildViewSwitch();
+  document.querySelectorAll('[name="posturemode"]').forEach(r => r.addEventListener('change', () => {
+    if (state.mode === r.value) return;
+    state.mode = r.value;
+    currentView = state.mode === 'sitting' ? 'front' : 'top';
+    buildInputs(); syncUI(); buildViewSwitch(); render();
+    showStatus(state.mode === 'sitting' ? 'Now assessing the SITTING posture.' : 'Now assessing the LYING posture.');
+  }));
+  document.querySelectorAll('[data-page]').forEach(b => b.addEventListener('click', () => showPage(b.dataset.page)));
+  $('exA').addEventListener('click', () => { state = exampleA(); syncUI(); render(); showStatus('Example A loaded.'); });
+  $('exB').addEventListener('click', () => { state = exampleB(); syncUI(); render(); showStatus('Example B loaded.'); });
+  document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+    const pre = $(b.dataset.copy); let ok = false;
+    const selectPre = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+    try { await navigator.clipboard.writeText(pre.dataset.text); ok = true; } catch (err) { try { selectPre(); ok = document.execCommand('copy'); } catch (e2) { ok = false; } }
+    const old = b.textContent; b.textContent = ok ? 'Copied' : 'Text selected – press Ctrl+C'; if (!ok) selectPre();
+    setTimeout(() => b.textContent = old, 1800);
+  }));
+  // ---- support drag (top view) ----
+  const viewSvg = $('view');
+  const svgPt = evt => { const pt = viewSvg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY; return pt.matrixTransform(viewSvg.getScreenCTM().inverse()); };
+  viewSvg.addEventListener('pointerdown', e => {
+    const g = e.target.closest('[data-sup-hit]'); if (!g) return;
+    const id = g.getAttribute('data-sup-hit'), s = state[state.mode].supports.find(x => x.id === id); if (!s) return;
+    selectedSupport = id; dragSup = s; const p = svgPt(e); dragOff = { x: p.x - s.x, y: p.y - s.y };
+    try { g.setPointerCapture(e.pointerId); } catch (err) {}
+    g.style.cursor = 'grabbing'; e.preventDefault(); renderSupportList();
+  });
+  viewSvg.addEventListener('pointermove', e => {
+    if (!dragSup) return;
+    const p = svgPt(e);
+    dragSup.x = Math.round(clamp(p.x - dragOff.x, -58, 58) * 10) / 10;
+    dragSup.y = Math.round(clamp(p.y - dragOff.y, 2, 216) * 10) / 10;
+    const g = viewSvg.querySelector(`[data-sup-hit="${dragSup.id}"]`); if (g) g.setAttribute('transform', `translate(${dragSup.x},${dragSup.y})`);
+  });
+  const endDrag = () => { if (dragSup) { dragSup = null; render(); } };
+  viewSvg.addEventListener('pointerup', endDrag);
+  viewSvg.addEventListener('pointercancel', endDrag);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+init();
+
+</script>
+</body>
+</html>
